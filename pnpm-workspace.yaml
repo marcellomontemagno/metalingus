@@ -1,4 +1,5 @@
 allowBuilds:
+  bufferutil: false
   sharp: true
   unrs-resolver: true
 ignoredBuiltDependencies:
