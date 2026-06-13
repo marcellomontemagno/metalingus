@@ -1,12 +1,10 @@
-import { auth } from "@/auth";
+import {auth} from "@/auth";
 import Link from "next/link";
 
 export default async function Home() {
   const session = await auth();
-
   return (
-    <main>
-      <h1>Public Landing Page</h1>
+    <div>
       <p>This is the bare-bones landing page accessible to everyone.</p>
       {session ? (
         <div>
@@ -14,8 +12,8 @@ export default async function Home() {
           <Link href="/protected">Go to Protected Page</Link>
         </div>
       ) : (
-        <Link href="/auth/signin">Sign In to access protected content</Link>
+        <Link href="/auth/signin">Sign In if invited</Link>
       )}
-    </main>
+    </div>
   );
 }

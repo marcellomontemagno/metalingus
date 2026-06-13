@@ -1,10 +1,11 @@
 import { signIn } from "@/auth";
 
-export default function SignInPage({
-  searchParams,
+export default async function SignInPage({
+  searchParams: searchParamsPromise,
 }: {
-  searchParams: { callbackUrl?: string; error?: string };
+  searchParams: Promise<{ callbackUrl?: string; error?: string }>;
 }) {
+  const searchParams = await searchParamsPromise;
   return (
     <main>
       <h1>Sign In</h1>
@@ -14,6 +15,7 @@ export default function SignInPage({
       <form
         action={async (formData) => {
           "use server";
+          const searchParams = await searchParamsPromise;
           const email = formData.get("email") as string;
           await signIn("resend", { 
             email, 
