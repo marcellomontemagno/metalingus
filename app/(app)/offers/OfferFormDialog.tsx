@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogFooter,
   DialogHeader,
@@ -148,7 +149,8 @@ export default function OfferFormDialog({
           <DialogTitle>{offer ? "Edit offer" : "New offer"}</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-3">
+        <form onSubmit={handleSubmit} noValidate className="contents">
+          <DialogBody className="flex flex-col gap-3">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="barsAvailable">Bars available</Label>
             <Input
@@ -292,6 +294,7 @@ export default function OfferFormDialog({
           </div>
 
           <FieldError>{formError}</FieldError>
+          </DialogBody>
 
           <DialogFooter>
             <Button

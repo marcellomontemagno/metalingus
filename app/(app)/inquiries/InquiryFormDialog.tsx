@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogFooter,
   DialogHeader,
@@ -145,7 +146,8 @@ export default function InquiryFormDialog({
           <DialogTitle>{inquiry ? "Edit inquiry" : "New inquiry"}</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-3">
+        <form onSubmit={handleSubmit} noValidate className="contents">
+          <DialogBody className="flex flex-col gap-3">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="barsRequested">Bars requested</Label>
             <Input
@@ -251,6 +253,7 @@ export default function InquiryFormDialog({
           </div>
 
           <FieldError>{formError}</FieldError>
+          </DialogBody>
 
           <DialogFooter>
             <Button
