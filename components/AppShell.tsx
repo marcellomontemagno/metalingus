@@ -1,14 +1,39 @@
-import Sidebar from "@/components/Sidebar";
+import { signOut } from "@/auth";
+import getAuthContext from "@/lib/auth/getAuthContext";
+import AppSidebar from "@/components/AppSidebar";
+import {
+  SidebarInset,
+  SidebarProvider,
+  SidebarTrigger,
+} from "@/components/ui/sidebar";
 
-export default function AppShell({
+export default async function AppShell({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const { user, roles } = await getAuthContext();
+  const has = (name: string) => roles.some((r) => r.name === name);
+
+  const items = [
+    ...(has("buyer") ? [{ href: "/inquiries", label: "Inquiries", icon: "inbox" }] : []),
+    ...(has("seller") ? [{ href: "/offers", label: "Offers", icon: "tag" }] : []),
+  ];
+
+  async function signOutAction() {
+    "use server";
+    await signOut({ redirectTo: "/" });
+  }
+
   return (
-    <div className="flex h-full">
-      <Sidebar />
-      <div className="flex-1 overflow-auto">{children}</div>
-    </div>
+    <SidebarProvider>
+      <AppSidebar items={items} userEmail={user.email} signOutAction={signOutAction} />
+      <SidebarInset>
+        <header className="flex h-12 shrink-0 items-center gap-2 border-b px-4">
+          <SidebarTrigger />
+        </header>
+        <div className="flex-1 overflow-auto">{children}</div>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }
