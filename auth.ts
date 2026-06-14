@@ -18,12 +18,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     verifyRequest: "/auth/verify",
     error: "/auth/error",
   },
-  callbacks: {
-    authorized({ auth, request: { nextUrl } }) {
-      const isLoggedIn = !!auth?.user;
-      const isProtected = nextUrl.pathname.startsWith("/protected");
-      if (isProtected && !isLoggedIn) return false;
-      return true;
-    },
-  },
+  // Route gating lives in middleware.ts (which returns 401 for /api and redirects
+  // for pages), so no `authorized` callback is needed here.
 });

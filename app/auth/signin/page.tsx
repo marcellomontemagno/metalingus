@@ -19,7 +19,7 @@ export default async function SignInPage({
           const email = formData.get("email") as string;
           await signIn("resend", { 
             email, 
-            redirectTo: searchParams.callbackUrl || "/protected" 
+            redirectTo: searchParams.callbackUrl || "/"
           });
         }}
       >
