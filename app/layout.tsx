@@ -1,14 +1,11 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Nunito_Sans } from "next/font/google";
+import { Geist_Mono, Nunito_Sans, Bricolage_Grotesque } from "next/font/google";
 import "./globals.css";
 import cn from "@/lib/utils/cn";
 
-const nunitoSans = Nunito_Sans({subsets:['latin'],variable:'--font-sans'});
+const nunitoSans = Nunito_Sans({subsets:['latin'],variable:'--font-nunito-sans'});
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
+const bricolage = Bricolage_Grotesque({subsets:['latin'],variable:'--font-bricolage'});
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
@@ -28,7 +25,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={cn("h-full", "antialiased", geistSans.variable, geistMono.variable, "font-sans", nunitoSans.variable)}
+      className={cn("h-full", "antialiased", geistMono.variable, "font-sans", nunitoSans.variable, bricolage.variable)}
     >
       <body className="h-full">{children}</body>
     </html>

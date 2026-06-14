@@ -8,7 +8,7 @@ export default async function SignInPage({
   const searchParams = await searchParamsPromise;
   return (
     <main>
-      <h1>Sign In</h1>
+      <h1 className="font-heading text-2xl font-semibold tracking-tight">Sign In</h1>
       {searchParams.error && (
         <p style={{ color: "red" }}>Error: {searchParams.error}</p>
       )}

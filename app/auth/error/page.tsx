@@ -7,7 +7,7 @@ export default function AuthErrorPage({
 }) {
   return (
     <main>
-      <h1>Authentication Error</h1>
+      <h1 className="font-heading text-2xl font-semibold tracking-tight">Authentication Error</h1>
       <p>Something went wrong: {searchParams.error || "Unknown error"}</p>
       <Link href="/auth/signin">Try again</Link>
     </main>
