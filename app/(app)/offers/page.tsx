@@ -101,24 +101,35 @@ export default function OffersPage() {
               <TableBody>
                 {offers.map((o) => (
                   <TableRow key={o.id}>
-                    <TableCell>{o.barsAvailable}</TableCell>
-                    <TableCell>
+                    <TableCell data-label="Bars">{o.barsAvailable}</TableCell>
+                    <TableCell data-label="Grade">
                       <Badge variant="secondary">{o.grade}</Badge>
                     </TableCell>
-                    <TableCell>
+                    <TableCell data-label="Shape">
                       <Badge variant="outline">{o.shape}</Badge>
                     </TableCell>
-                    <TableCell>{dimensions(o)}</TableCell>
-                    <TableCell>{o.thickness}</TableCell>
-                    <TableCell>{o.barsPerBundle}</TableCell>
-                    <TableCell>{o.weightPerMeter}</TableCell>
-                    <TableCell>
+                    <TableCell data-label="Dimensions (mm)">
+                      {dimensions(o)}
+                    </TableCell>
+                    <TableCell data-label="Thickness (mm)">
+                      {o.thickness}
+                    </TableCell>
+                    <TableCell data-label="Bars/bundle">
+                      {o.barsPerBundle}
+                    </TableCell>
+                    <TableCell data-label="Weight/m (kg)">
+                      {o.weightPerMeter}
+                    </TableCell>
+                    <TableCell data-label="Price/m">
                       {o.pricePerMeter} {o.currency}
                     </TableCell>
-                    <TableCell className="text-muted-foreground">
+                    <TableCell
+                      data-label="Notes"
+                      className="text-muted-foreground"
+                    >
                       {o.notes ?? "—"}
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-right max-md:before:hidden">
                       <div className="flex justify-end gap-1">
                         <Button
                           size="sm"

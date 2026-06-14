@@ -23,7 +23,7 @@ function TableHeader({ className, ...props }: React.ComponentProps<"thead">) {
   return (
     <thead
       data-slot="table-header"
-      className={cn("[&_tr]:border-b", className)}
+      className={cn("[&_tr]:border-b max-md:hidden", className)}
       {...props}
     />
   )
@@ -33,7 +33,7 @@ function TableBody({ className, ...props }: React.ComponentProps<"tbody">) {
   return (
     <tbody
       data-slot="table-body"
-      className={cn("[&_tr:last-child]:border-0", className)}
+      className={cn("md:[&_tr:last-child]:border-0", className)}
       {...props}
     />
   )
@@ -58,6 +58,7 @@ function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
       data-slot="table-row"
       className={cn(
         "border-b transition-colors hover:bg-muted/50 has-aria-expanded:bg-muted/50 data-[state=selected]:bg-muted",
+        "max-md:mb-2 max-md:block max-md:rounded-md max-md:border max-md:p-2",
         className
       )}
       {...props}
@@ -84,6 +85,8 @@ function TableCell({ className, ...props }: React.ComponentProps<"td">) {
       data-slot="table-cell"
       className={cn(
         "p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0",
+        "max-md:flex max-md:items-center max-md:justify-between max-md:gap-4 max-md:whitespace-normal",
+        "max-md:before:mr-2 max-md:before:font-medium max-md:before:text-muted-foreground max-md:before:content-[attr(data-label)]",
         className
       )}
       {...props}

@@ -106,20 +106,29 @@ export default function InquiriesPage() {
               <TableBody>
                 {inquiries.map((i) => (
                   <TableRow key={i.id}>
-                    <TableCell>{i.barsRequested}</TableCell>
-                    <TableCell>
+                    <TableCell data-label="Bars">{i.barsRequested}</TableCell>
+                    <TableCell data-label="Grade">
                       <Badge variant="secondary">{i.grade}</Badge>
                     </TableCell>
-                    <TableCell>
+                    <TableCell data-label="Shape">
                       <Badge variant="outline">{i.shape}</Badge>
                     </TableCell>
-                    <TableCell>{dimensions(i)}</TableCell>
-                    <TableCell>{i.thickness}</TableCell>
-                    <TableCell>{deliveryDate(i.latestDeliveryDate)}</TableCell>
-                    <TableCell className="text-muted-foreground">
+                    <TableCell data-label="Dimensions (mm)">
+                      {dimensions(i)}
+                    </TableCell>
+                    <TableCell data-label="Thickness (mm)">
+                      {i.thickness}
+                    </TableCell>
+                    <TableCell data-label="Latest delivery">
+                      {deliveryDate(i.latestDeliveryDate)}
+                    </TableCell>
+                    <TableCell
+                      data-label="Notes"
+                      className="text-muted-foreground"
+                    >
                       {i.notes ?? "—"}
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-right max-md:before:hidden">
                       <div className="flex justify-end gap-1">
                         <Button
                           size="sm"
