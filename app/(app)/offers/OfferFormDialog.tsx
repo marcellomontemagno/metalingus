@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import {
   Dialog,
@@ -19,6 +19,9 @@ import { gradeSchema } from "@/lib/model/Grade";
 import { shapeSchema } from "@/lib/model/Shape";
 import { currencySchema } from "@/lib/model/Currency";
 import { offerSchema } from "@/lib/model/offer/Offer";
+import { produce } from "immer";
+import { useStore, setStore } from "@/lib/store/store";
+import { createOfferApi, updateOfferApi } from "@/lib/api/offerApi";
 import type Offer from "@/lib/model/offer/Offer";
 import createOffer from "@/lib/model/offer/createOffer";
 import EnumCombobox from "@/components/EnumCombobox";
@@ -35,28 +38,19 @@ const EMPTY = toForm(createOffer());
 export default function OfferFormDialog({
   open,
   onOpenChange,
-  offer,
+  offerId,
   onSaved,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  offer?: Offer | null;
+  offerId?: string | null;
   onSaved: () => void;
 }) {
-  const [form, setForm] = useState<FormState>(EMPTY);
+  const offer = useStore((s) => (offerId ? s.entities.offer[offerId] : null));
+  const [form, setForm] = useState<FormState>(offer ? toForm(offer) : EMPTY);
   const [fieldErrors, setFieldErrors] = useState<
     Partial<Record<keyof Offer, string>>
   >({});
-  const [formError, setFormError] = useState<string | null>(null);
-  const [pending, setPending] = useState(false);
-
-  useEffect(() => {
-    if (open) {
-      setForm(offer ? toForm(offer) : EMPTY);
-      setFieldErrors({});
-      setFormError(null);
-    }
-  }, [open, offer]);
 
   const clearError = (key: keyof Offer) => {
     setFieldErrors((e) => {
@@ -65,7 +59,6 @@ export default function OfferFormDialog({
       delete rest[key];
       return rest;
     });
-    setFormError(null);
   };
 
   const set = (key: keyof FormState) => (value: string) => {
@@ -105,7 +98,7 @@ export default function OfferFormDialog({
       pricePerMeter: Number(form.pricePerMeter),
       currency: form.currency as Offer["currency"],
       notes: form.notes || null,
-      userId: null,
+      userId: offer?.userId ?? null,
     };
 
     const result = offerSchema.safeParse(payload);
@@ -121,24 +114,20 @@ export default function OfferFormDialog({
       return;
     }
 
-    setPending(true);
     setFieldErrors({});
-    setFormError(null);
 
-    const res = await fetch(
-      offer ? `/api/offers/${offer.id}` : "/api/offers",
-      {
-        method: offer ? "PATCH" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      },
+    setStore(
+      produce((draft) => {
+        draft.entities.offer[payload.id] = payload;
+      }),
     );
 
-    setPending(false);
-    if (res.ok) {
-      onSaved();
+    onSaved();
+
+    if (offer) {
+      await updateOfferApi(payload);
     } else {
-      setFormError((await res.text()) || "Something went wrong");
+      await createOfferApi(payload);
     }
   }
 
@@ -146,7 +135,7 @@ export default function OfferFormDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{offer ? "Edit offer" : "New offer"}</DialogTitle>
+          <DialogTitle>{offerId ? "Edit offer" : "New offer"}</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} noValidate className="contents">
@@ -292,8 +281,6 @@ export default function OfferFormDialog({
               onChange={(e) => set("notes")(e.target.value)}
             />
           </div>
-
-          <FieldError>{formError}</FieldError>
           </DialogBody>
 
           <DialogFooter>
@@ -304,9 +291,7 @@ export default function OfferFormDialog({
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={pending}>
-              {pending ? "Saving…" : "Save"}
-            </Button>
+            <Button type="submit">Save</Button>
           </DialogFooter>
         </form>
       </DialogContent>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 
 import {
   Card,
@@ -20,9 +20,13 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { produce } from "immer";
+import { useStore, setStore } from "@/lib/store/store";
+import { useAsync } from "react-async-hook";
+import { getInquiries, deleteInquiryApi } from "@/lib/api/inquiryApi";
 import type Inquiry from "@/lib/model/inquiry/Inquiry";
 import InquiryFormDialog from "./InquiryFormDialog";
-import DeleteInquiryDialog from "./DeleteInquiryDialog";
+import DeleteConfirmDialog from "@/components/DeleteConfirmDialog";
 
 function dimensions(i: Inquiry) {
   if (i.shape === "ROUND") return `Ø${i.height}`;
@@ -38,36 +42,25 @@ function deliveryDate(value: string | null) {
 }
 
 export default function InquiriesPage() {
-  const [inquiries, setInquiries] = useState<Inquiry[]>([]);
-  const [loading, setLoading] = useState(true);
+
+  const {loading} = useAsync(getInquiries, [], {
+    onSuccess: (data) => {
+      setStore(
+        produce((s) => {
+          data.forEach((i) => {
+            s.entities.inquiry[i.id] = i;
+          });
+        }),
+      );
+    },
+  });
+
+  const inquiriesMap = useStore((s) => s.entities.inquiry);
+  const inquiries = Object.values(inquiriesMap);
+
   const [formOpen, setFormOpen] = useState(false);
-  const [editing, setEditing] = useState<Inquiry | null>(null);
-  const [deleting, setDeleting] = useState<Inquiry | null>(null);
-
-  const loadInquiries = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await fetch("/api/inquiries");
-      const data: Inquiry[] = await res.json();
-      setInquiries(data);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadInquiries();
-  }, [loadInquiries]);
-
-  function openNew() {
-    setEditing(null);
-    setFormOpen(true);
-  }
-
-  function openEdit(inquiry: Inquiry) {
-    setEditing(inquiry);
-    setFormOpen(true);
-  }
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   return (
     <main className="p-6">
@@ -75,7 +68,13 @@ export default function InquiriesPage() {
         <CardHeader>
           <CardTitle>My Inquiries</CardTitle>
           <CardAction>
-            <Button size="sm" onClick={openNew}>
+            <Button
+              size="sm"
+              onClick={() => {
+                setEditingId(null);
+                setFormOpen(true);
+              }}
+            >
               New inquiry
             </Button>
           </CardAction>
@@ -104,43 +103,46 @@ export default function InquiriesPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {inquiries.map((i) => (
-                  <TableRow key={i.id}>
-                    <TableCell data-label="Bars">{i.barsRequested}</TableCell>
+                {inquiries.map((inquiry) => (
+                  <TableRow key={inquiry.id}>
+                    <TableCell data-label="Bars">{inquiry.barsRequested}</TableCell>
                     <TableCell data-label="Grade">
-                      <Badge variant="secondary">{i.grade}</Badge>
+                      <Badge variant="secondary">{inquiry.grade}</Badge>
                     </TableCell>
                     <TableCell data-label="Shape">
-                      <Badge variant="outline">{i.shape}</Badge>
+                      <Badge variant="outline">{inquiry.shape}</Badge>
                     </TableCell>
                     <TableCell data-label="Dimensions (mm)">
-                      {dimensions(i)}
+                      {dimensions(inquiry)}
                     </TableCell>
                     <TableCell data-label="Thickness (mm)">
-                      {i.thickness}
+                      {inquiry.thickness}
                     </TableCell>
                     <TableCell data-label="Latest delivery">
-                      {deliveryDate(i.latestDeliveryDate)}
+                      {deliveryDate(inquiry.latestDeliveryDate)}
                     </TableCell>
                     <TableCell
                       data-label="Notes"
                       className="text-muted-foreground"
                     >
-                      {i.notes ?? "—"}
+                      {inquiry.notes ?? "—"}
                     </TableCell>
                     <TableCell className="text-right max-md:before:hidden">
                       <div className="flex justify-end gap-1">
                         <Button
                           size="sm"
                           variant="ghost"
-                          onClick={() => openEdit(i)}
+                          onClick={() => {
+                            setEditingId(inquiry.id);
+                            setFormOpen(true);
+                          }}
                         >
                           Edit
                         </Button>
                         <Button
                           size="sm"
                           variant="destructive"
-                          onClick={() => setDeleting(i)}
+                          onClick={() => setDeletingId(inquiry.id)}
                         >
                           Delete
                         </Button>
@@ -155,21 +157,29 @@ export default function InquiriesPage() {
       </Card>
 
       <InquiryFormDialog
+        key={String(formOpen)}
         open={formOpen}
         onOpenChange={setFormOpen}
-        inquiry={editing}
+        inquiryId={editingId}
         onSaved={() => {
           setFormOpen(false);
-          loadInquiries();
         }}
       />
 
-      <DeleteInquiryDialog
-        inquiry={deleting}
-        onOpenChange={(open) => !open && setDeleting(null)}
-        onDeleted={() => {
-          setDeleting(null);
-          loadInquiries();
+      <DeleteConfirmDialog
+        isOpen={deletingId !== null}
+        onOpenChange={(open) => !open && setDeletingId(null)}
+        title="Delete inquiry?"
+        description="This permanently removes the inquiry. This action cannot be undone."
+        onConfirm={async ()=>{
+          if (!deletingId) return;
+          setStore(
+            produce((draft) => {
+              delete draft.entities.inquiry[deletingId];
+            }),
+          );
+          setDeletingId(null);
+          await deleteInquiryApi(deletingId);
         }}
       />
     </main>

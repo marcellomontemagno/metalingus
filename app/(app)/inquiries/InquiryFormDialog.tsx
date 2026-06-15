@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import {
   Dialog,
@@ -18,6 +18,9 @@ import { FieldError } from "@/components/ui/field";
 import { gradeSchema } from "@/lib/model/Grade";
 import { shapeSchema } from "@/lib/model/Shape";
 import { inquirySchema } from "@/lib/model/inquiry/Inquiry";
+import { produce } from "immer";
+import { useStore, setStore } from "@/lib/store/store";
+import { createInquiryApi, updateInquiryApi } from "@/lib/api/inquiryApi";
 import type Inquiry from "@/lib/model/inquiry/Inquiry";
 import createInquiry from "@/lib/model/inquiry/createInquiry";
 import EnumCombobox from "@/components/EnumCombobox";
@@ -35,28 +38,19 @@ const EMPTY = toForm(createInquiry());
 export default function InquiryFormDialog({
   open,
   onOpenChange,
-  inquiry,
+  inquiryId,
   onSaved,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  inquiry?: Inquiry | null;
+  inquiryId?: string | null;
   onSaved: () => void;
 }) {
-  const [form, setForm] = useState<FormState>(EMPTY);
+  const inquiry = useStore((s) => (inquiryId ? s.entities.inquiry[inquiryId] : null));
+  const [form, setForm] = useState<FormState>(inquiry ? toForm(inquiry) : EMPTY);
   const [fieldErrors, setFieldErrors] = useState<
     Partial<Record<keyof Inquiry, string>>
   >({});
-  const [formError, setFormError] = useState<string | null>(null);
-  const [pending, setPending] = useState(false);
-
-  useEffect(() => {
-    if (open) {
-      setForm(inquiry ? toForm(inquiry) : EMPTY);
-      setFieldErrors({});
-      setFormError(null);
-    }
-  }, [open, inquiry]);
 
   const clearError = (key: keyof Inquiry) => {
     setFieldErrors((e) => {
@@ -65,7 +59,6 @@ export default function InquiryFormDialog({
       delete rest[key];
       return rest;
     });
-    setFormError(null);
   };
 
   const set = (key: keyof FormState) => (value: string) => {
@@ -102,7 +95,7 @@ export default function InquiryFormDialog({
       height: Number(form.height),
       thickness: Number(form.thickness),
       notes: form.notes || null,
-      userId: null,
+      userId: inquiry?.userId ?? null,
     };
 
     const result = inquirySchema.safeParse(payload);
@@ -118,24 +111,20 @@ export default function InquiryFormDialog({
       return;
     }
 
-    setPending(true);
     setFieldErrors({});
-    setFormError(null);
 
-    const res = await fetch(
-      inquiry ? `/api/inquiries/${inquiry.id}` : "/api/inquiries",
-      {
-        method: inquiry ? "PATCH" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      },
+    setStore(
+      produce((draft) => {
+        draft.entities.inquiry[payload.id] = payload;
+      }),
     );
 
-    setPending(false);
-    if (res.ok) {
-      onSaved();
+    onSaved();
+
+    if (inquiry) {
+      await updateInquiryApi(payload);
     } else {
-      setFormError((await res.text()) || "Something went wrong");
+      await createInquiryApi(payload);
     }
   }
 
@@ -143,7 +132,7 @@ export default function InquiryFormDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{inquiry ? "Edit inquiry" : "New inquiry"}</DialogTitle>
+          <DialogTitle>{inquiryId ? "Edit inquiry" : "New inquiry"}</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} noValidate className="contents">
@@ -251,8 +240,6 @@ export default function InquiryFormDialog({
               onChange={(e) => set("notes")(e.target.value)}
             />
           </div>
-
-          <FieldError>{formError}</FieldError>
           </DialogBody>
 
           <DialogFooter>
@@ -263,9 +250,7 @@ export default function InquiryFormDialog({
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={pending}>
-              {pending ? "Saving…" : "Save"}
-            </Button>
+            <Button type="submit">Save</Button>
           </DialogFooter>
         </form>
       </DialogContent>

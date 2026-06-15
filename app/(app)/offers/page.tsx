@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 
 import {
   Card,
@@ -20,9 +20,13 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { produce } from "immer";
+import { useStore, setStore } from "@/lib/store/store";
+import { useAsync } from "react-async-hook";
+import { getOffers, deleteOfferApi } from "@/lib/api/offerApi";
 import type Offer from "@/lib/model/offer/Offer";
 import OfferFormDialog from "./OfferFormDialog";
-import DeleteOfferDialog from "./DeleteOfferDialog";
+import DeleteConfirmDialog from "@/components/DeleteConfirmDialog";
 
 function dimensions(o: Offer) {
   if (o.shape === "ROUND") return `Ø${o.height}`;
@@ -31,35 +35,34 @@ function dimensions(o: Offer) {
 }
 
 export default function OffersPage() {
-  const [offers, setOffers] = useState<Offer[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { loading } = useAsync(getOffers, [], {
+    onSuccess: (data) => {
+      setStore(
+        produce((s) => {
+          data.forEach((o) => {
+            s.entities.offer[o.id] = o;
+          });
+        }),
+      );
+    },
+  });
+
+  const offersMap = useStore((s) => s.entities.offer);
+  const offers = Object.values(offersMap);
+
   const [formOpen, setFormOpen] = useState(false);
-  const [editing, setEditing] = useState<Offer | null>(null);
-  const [deleting, setDeleting] = useState<Offer | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const loadOffers = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await fetch("/api/offers");
-      const data: Offer[] = await res.json();
-      setOffers(data);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadOffers();
-  }, [loadOffers]);
-
-  function openNew() {
-    setEditing(null);
-    setFormOpen(true);
-  }
-
-  function openEdit(offer: Offer) {
-    setEditing(offer);
-    setFormOpen(true);
+  async function handleDeleteOffer() {
+    if (!deletingId) return;
+    setStore(
+      produce((draft) => {
+        delete draft.entities.offer[deletingId];
+      }),
+    );
+    setDeletingId(null);
+    await deleteOfferApi(deletingId);
   }
 
   return (
@@ -68,7 +71,13 @@ export default function OffersPage() {
         <CardHeader>
           <CardTitle>My Offers</CardTitle>
           <CardAction>
-            <Button size="sm" onClick={openNew}>
+            <Button
+              size="sm"
+              onClick={() => {
+                setEditingId(null);
+                setFormOpen(true);
+              }}
+            >
               New offer
             </Button>
           </CardAction>
@@ -99,49 +108,52 @@ export default function OffersPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {offers.map((o) => (
-                  <TableRow key={o.id}>
-                    <TableCell data-label="Bars">{o.barsAvailable}</TableCell>
+                {offers.map((offer) => (
+                  <TableRow key={offer.id}>
+                    <TableCell data-label="Bars">{offer.barsAvailable}</TableCell>
                     <TableCell data-label="Grade">
-                      <Badge variant="secondary">{o.grade}</Badge>
+                      <Badge variant="secondary">{offer.grade}</Badge>
                     </TableCell>
                     <TableCell data-label="Shape">
-                      <Badge variant="outline">{o.shape}</Badge>
+                      <Badge variant="outline">{offer.shape}</Badge>
                     </TableCell>
                     <TableCell data-label="Dimensions (mm)">
-                      {dimensions(o)}
+                      {dimensions(offer)}
                     </TableCell>
                     <TableCell data-label="Thickness (mm)">
-                      {o.thickness}
+                      {offer.thickness}
                     </TableCell>
                     <TableCell data-label="Bars/bundle">
-                      {o.barsPerBundle}
+                      {offer.barsPerBundle}
                     </TableCell>
                     <TableCell data-label="Weight/m (kg)">
-                      {o.weightPerMeter}
+                      {offer.weightPerMeter}
                     </TableCell>
                     <TableCell data-label="Price/m">
-                      {o.pricePerMeter} {o.currency}
+                      {offer.pricePerMeter} {offer.currency}
                     </TableCell>
                     <TableCell
                       data-label="Notes"
                       className="text-muted-foreground"
                     >
-                      {o.notes ?? "—"}
+                      {offer.notes ?? "—"}
                     </TableCell>
                     <TableCell className="text-right max-md:before:hidden">
                       <div className="flex justify-end gap-1">
                         <Button
                           size="sm"
                           variant="ghost"
-                          onClick={() => openEdit(o)}
+                          onClick={() => {
+                            setEditingId(offer.id);
+                            setFormOpen(true);
+                          }}
                         >
                           Edit
                         </Button>
                         <Button
                           size="sm"
                           variant="destructive"
-                          onClick={() => setDeleting(o)}
+                          onClick={() => setDeletingId(offer.id)}
                         >
                           Delete
                         </Button>
@@ -156,22 +168,21 @@ export default function OffersPage() {
       </Card>
 
       <OfferFormDialog
+        key={String(formOpen)}
         open={formOpen}
         onOpenChange={setFormOpen}
-        offer={editing}
+        offerId={editingId}
         onSaved={() => {
           setFormOpen(false);
-          loadOffers();
         }}
       />
 
-      <DeleteOfferDialog
-        offer={deleting}
-        onOpenChange={(open) => !open && setDeleting(null)}
-        onDeleted={() => {
-          setDeleting(null);
-          loadOffers();
-        }}
+      <DeleteConfirmDialog
+        isOpen={deletingId !== null}
+        onOpenChange={(open) => !open && setDeletingId(null)}
+        title="Delete offer?"
+        description="This permanently removes the offer. This action cannot be undone."
+        onConfirm={handleDeleteOffer}
       />
     </main>
   );

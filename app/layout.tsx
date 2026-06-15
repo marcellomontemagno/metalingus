@@ -27,7 +27,9 @@ export default function RootLayout({
       lang="en"
       className={cn("h-full", "antialiased", geistMono.variable, "font-sans", nunitoSans.variable, bricolage.variable)}
     >
-      <body className="h-full">{children}</body>
+      <body className="h-full">
+        {children}
+      </body>
     </html>
   );
 }
