@@ -17,7 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
+
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { produce } from "immer";
@@ -27,6 +27,7 @@ import { getInquiries, deleteInquiryApi } from "@/lib/api/inquiryApi";
 import type Inquiry from "@/lib/model/inquiry/Inquiry";
 import InquiryFormDialog from "./InquiryFormDialog";
 import DeleteConfirmDialog from "@/components/DeleteConfirmDialog";
+import createCode from "@/lib/utils/createCode";
 
 function dimensions(i: Inquiry) {
   if (i.shape === "ROUND") return `Ø${i.height}`;
@@ -92,6 +93,7 @@ export default function InquiriesPage() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>Code</TableHead>
                   <TableHead>Bars</TableHead>
                   <TableHead>Grade</TableHead>
                   <TableHead>Shape</TableHead>
@@ -105,13 +107,10 @@ export default function InquiriesPage() {
               <TableBody>
                 {inquiries.map((inquiry) => (
                   <TableRow key={inquiry.id}>
+                    <TableCell data-label="Code">{createCode(inquiry)}</TableCell>
                     <TableCell data-label="Bars">{inquiry.barsRequested}</TableCell>
-                    <TableCell data-label="Grade">
-                      <Badge variant="secondary">{inquiry.grade}</Badge>
-                    </TableCell>
-                    <TableCell data-label="Shape">
-                      <Badge variant="outline">{inquiry.shape}</Badge>
-                    </TableCell>
+                    <TableCell data-label="Grade">{inquiry.grade}</TableCell>
+                    <TableCell data-label="Shape">{inquiry.shape}</TableCell>
                     <TableCell data-label="Dimensions (mm)">
                       {dimensions(inquiry)}
                     </TableCell>

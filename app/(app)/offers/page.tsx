@@ -17,7 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
+
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { produce } from "immer";
@@ -27,6 +27,7 @@ import { getOffers, deleteOfferApi } from "@/lib/api/offerApi";
 import type Offer from "@/lib/model/offer/Offer";
 import OfferFormDialog from "./OfferFormDialog";
 import DeleteConfirmDialog from "@/components/DeleteConfirmDialog";
+import createCode from "@/lib/utils/createCode";
 
 function dimensions(o: Offer) {
   if (o.shape === "ROUND") return `Ø${o.height}`;
@@ -95,6 +96,7 @@ export default function OffersPage() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>Code</TableHead>
                   <TableHead>Bars</TableHead>
                   <TableHead>Grade</TableHead>
                   <TableHead>Shape</TableHead>
@@ -110,13 +112,10 @@ export default function OffersPage() {
               <TableBody>
                 {offers.map((offer) => (
                   <TableRow key={offer.id}>
+                    <TableCell data-label="Code">{createCode(offer)}</TableCell>
                     <TableCell data-label="Bars">{offer.barsAvailable}</TableCell>
-                    <TableCell data-label="Grade">
-                      <Badge variant="secondary">{offer.grade}</Badge>
-                    </TableCell>
-                    <TableCell data-label="Shape">
-                      <Badge variant="outline">{offer.shape}</Badge>
-                    </TableCell>
+                    <TableCell data-label="Grade">{offer.grade}</TableCell>
+                    <TableCell data-label="Shape">{offer.shape}</TableCell>
                     <TableCell data-label="Dimensions (mm)">
                       {dimensions(offer)}
                     </TableCell>
