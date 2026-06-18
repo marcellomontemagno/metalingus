@@ -9,16 +9,19 @@ import insertClause from "@/lib/db/insertClause";
 
 export async function GET() {
   const ctx = await getAuthContext();
-  if (!ctx.roles.some((r) => r.name === "buyer"))
-    return new Response("Forbidden", { status: 403 });
+  const has = (name: string) => ctx.roles.some((r) => r.name === name);
   const userId = ctx.user.id;
-  const rows = await sql`
-    SELECT *
-    FROM inquiry
-    WHERE user_id = ${userId}
-    ORDER BY latest_delivery_date NULLS LAST
-  `;
-  return Response.json(parseRows(inquirySchema, rows));
+  let rows: Record<string, unknown>[] = [];
+  if (has("broker")) {
+    rows = await sql`
+      SELECT * FROM inquiry
+    `;
+  } else if (has("buyer")) {
+    rows = await sql`
+      SELECT * FROM inquiry WHERE user_id = ${userId}
+    `;
+  }
+  return Response.json({ inquiry: parseRows(inquirySchema, rows) });
 }
 
 export async function POST(request: Request) {
@@ -44,5 +47,8 @@ export async function POST(request: Request) {
     `INSERT INTO inquiry (${columns}) VALUES (${placeholders}) RETURNING *`,
     values,
   );
-  return Response.json(parseRow(inquirySchema, rows[0]), { status: 201 });
+  return Response.json(
+    { inquiry: [parseRow(inquirySchema, rows[0])] },
+    { status: 201 },
+  );
 }

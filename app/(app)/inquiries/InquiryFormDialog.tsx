@@ -20,6 +20,7 @@ import { shapeSchema } from "@/lib/model/Shape";
 import { inquirySchema } from "@/lib/model/inquiry/Inquiry";
 import { produce } from "immer";
 import { useStore, setStore } from "@/lib/store/store";
+import mergeEntities from "@/lib/store/mergeEntities";
 import { createInquiryApi, updateInquiryApi } from "@/lib/api/inquiryApi";
 import type Inquiry from "@/lib/model/inquiry/Inquiry";
 import createInquiry from "@/lib/model/inquiry/createInquiry";
@@ -121,11 +122,10 @@ export default function InquiryFormDialog({
 
     onSaved();
 
-    if (inquiry) {
-      await updateInquiryApi(payload);
-    } else {
-      await createInquiryApi(payload);
-    }
+    const saved = inquiry
+      ? await updateInquiryApi(payload)
+      : await createInquiryApi(payload);
+    mergeEntities(saved);
   }
 
   return (

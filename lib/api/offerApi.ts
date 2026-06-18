@@ -1,27 +1,27 @@
 import type Offer from "../model/offer/Offer";
 import request from "./request";
 
-export async function getOffers(): Promise<Offer[]> {
+export async function getOffers(): Promise<{ offer: Offer[] }> {
   const res = await request("/api/offers");
-  return (await res.json()) as Offer[];
+  return res.json();
 }
 
-export async function createOfferApi(offer: Offer): Promise<Offer> {
+export async function createOfferApi(offer: Offer): Promise<{ offer: Offer[] }> {
   const res = await request("/api/offers", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(offer),
   });
-  return (await res.json()) as Offer;
+  return res.json();
 }
 
-export async function updateOfferApi(offer: Offer): Promise<Offer> {
+export async function updateOfferApi(offer: Offer): Promise<{ offer: Offer[] }> {
   const res = await request(`/api/offers/${offer.id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(offer),
   });
-  return (await res.json()) as Offer;
+  return res.json();
 }
 
 export async function deleteOfferApi(id: string): Promise<void> {

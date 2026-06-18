@@ -36,7 +36,7 @@ export async function PATCH(request: Request, { params }: Params) {
     values,
   );
   if (!rows[0]) return new Response("Not found", { status: 404 });
-  return Response.json(parseRow(offerSchema, rows[0]));
+  return Response.json({ offer: [parseRow(offerSchema, rows[0])] });
 }
 
 export async function DELETE(_request: Request, { params }: Params) {

@@ -21,6 +21,7 @@ import { currencySchema } from "@/lib/model/Currency";
 import { offerSchema } from "@/lib/model/offer/Offer";
 import { produce } from "immer";
 import { useStore, setStore } from "@/lib/store/store";
+import mergeEntities from "@/lib/store/mergeEntities";
 import { createOfferApi, updateOfferApi } from "@/lib/api/offerApi";
 import type Offer from "@/lib/model/offer/Offer";
 import createOffer from "@/lib/model/offer/createOffer";
@@ -124,11 +125,10 @@ export default function OfferFormDialog({
 
     onSaved();
 
-    if (offer) {
-      await updateOfferApi(payload);
-    } else {
-      await createOfferApi(payload);
-    }
+    const saved = offer
+      ? await updateOfferApi(payload)
+      : await createOfferApi(payload);
+    mergeEntities(saved);
   }
 
   return (

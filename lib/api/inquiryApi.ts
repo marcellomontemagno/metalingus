@@ -1,27 +1,31 @@
 import type Inquiry from "../model/inquiry/Inquiry";
 import request from "./request";
 
-export async function getInquiries(): Promise<Inquiry[]> {
+export async function getInquiries(): Promise<{ inquiry: Inquiry[] }> {
   const res = await request("/api/inquiries");
-  return (await res.json()) as Inquiry[];
+  return res.json();
 }
 
-export async function createInquiryApi(inquiry: Inquiry): Promise<Inquiry> {
+export async function createInquiryApi(
+  inquiry: Inquiry,
+): Promise<{ inquiry: Inquiry[] }> {
   const res = await request("/api/inquiries", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(inquiry),
   });
-  return (await res.json()) as Inquiry;
+  return res.json();
 }
 
-export async function updateInquiryApi(inquiry: Inquiry): Promise<Inquiry> {
+export async function updateInquiryApi(
+  inquiry: Inquiry,
+): Promise<{ inquiry: Inquiry[] }> {
   const res = await request(`/api/inquiries/${inquiry.id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(inquiry),
   });
-  return (await res.json()) as Inquiry;
+  return res.json();
 }
 
 export async function deleteInquiryApi(id: string): Promise<void> {

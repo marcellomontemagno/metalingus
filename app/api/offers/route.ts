@@ -9,16 +9,17 @@ import insertClause from "@/lib/db/insertClause";
 
 export async function GET() {
   const ctx = await getAuthContext();
-  if (!ctx.roles.some((r) => r.name === "seller"))
-    return new Response("Forbidden", { status: 403 });
+  const has = (name: string) => ctx.roles.some((r) => r.name === name);
   const userId = ctx.user.id;
-  const rows = await sql`
-    SELECT *
-    FROM offer
-    WHERE user_id = ${userId}
-    ORDER BY price_per_meter
-  `;
-  return Response.json(parseRows(offerSchema, rows));
+  let rows: Record<string, unknown>[] = [];
+  if (has("broker")) {
+    rows = await sql`SELECT * FROM offer`;
+  } else if (has("seller")) {
+    rows = await sql`
+      SELECT * FROM offer WHERE user_id = ${userId}
+    `;
+  }
+  return Response.json({ offer: parseRows(offerSchema, rows) });
 }
 
 export async function POST(request: Request) {
@@ -44,5 +45,8 @@ export async function POST(request: Request) {
     `INSERT INTO offer (${columns}) VALUES (${placeholders}) RETURNING *`,
     values,
   );
-  return Response.json(parseRow(offerSchema, rows[0]), { status: 201 });
+  return Response.json(
+    { offer: [parseRow(offerSchema, rows[0])] },
+    { status: 201 },
+  );
 }

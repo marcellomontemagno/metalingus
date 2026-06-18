@@ -28,9 +28,9 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { produce } from "immer";
 import { useStore, setStore } from "@/lib/store/store";
+import mergeEntities from "@/lib/store/mergeEntities";
 import { useAsync } from "react-async-hook";
 import { getOffers, deleteOfferApi } from "@/lib/api/offerApi";
-import type Offer from "@/lib/model/offer/Offer";
 import OfferFormDialog from "./OfferFormDialog";
 import DeleteConfirmDialog from "@/components/DeleteConfirmDialog";
 import createCode from "@/lib/utils/createCode";
@@ -38,15 +38,7 @@ import { formatDimensions, formatPrice } from "@/lib/utils/format";
 
 export default function OffersPage() {
   const { loading } = useAsync(getOffers, [], {
-    onSuccess: (data) => {
-      setStore(
-        produce((s) => {
-          data.forEach((o) => {
-            s.entities.offer[o.id] = o;
-          });
-        }),
-      );
-    },
+    onSuccess: (data) => mergeEntities(data),
   });
 
   const offersMap = useStore((s) => s.entities.offer);
@@ -62,6 +54,7 @@ export default function OffersPage() {
     if (!query) return true;
 
     return [
+      offer.id,
       createCode(offer),
       offer.barsAvailable,
       offer.grade,
@@ -135,6 +128,7 @@ export default function OffersPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead>ID</TableHead>
                       <TableHead>Code</TableHead>
                       <TableHead>Bars</TableHead>
                       <TableHead>Grade</TableHead>
@@ -151,6 +145,7 @@ export default function OffersPage() {
                   <TableBody>
                     {filteredOffers.map((offer) => (
                       <TableRow key={offer.id}>
+                        <TableCell data-label="ID">{offer.id}</TableCell>
                         <TableCell data-label="Code">{createCode(offer)}</TableCell>
                         <TableCell data-label="Bars">{offer.barsAvailable}</TableCell>
                         <TableCell data-label="Grade">{offer.grade}</TableCell>

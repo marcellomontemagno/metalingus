@@ -1,5 +1,6 @@
 import type Shape from "@/lib/model/Shape";
 import type Currency from "@/lib/model/Currency";
+import type OrderStatus from "@/lib/model/OrderStatus";
 
 export function formatDimensions(item: { shape: Shape; width: number; height: number }): string {
   if (item.shape === "ROUND") return `${item.height}`;
@@ -16,4 +17,16 @@ export function formatDeliveryDate(value: string | null): string {
 
 export function formatPrice(price: number, currency: Currency): string {
   return `${price}-${currency}`;
+}
+
+export function formatOrderStatus(status: OrderStatus): string {
+  return status.charAt(0) + status.slice(1).toLowerCase();
+}
+
+export function orderStatusVariant(
+  status: OrderStatus,
+): "default" | "secondary" | "destructive" {
+  if (status === "CANCELLED") return "destructive";
+  if (status === "DELIVERED") return "default";
+  return "secondary";
 }

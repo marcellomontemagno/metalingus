@@ -28,6 +28,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { produce } from "immer";
 import { useStore, setStore } from "@/lib/store/store";
+import mergeEntities from "@/lib/store/mergeEntities";
 import { useAsync } from "react-async-hook";
 import { getInquiries, deleteInquiryApi } from "@/lib/api/inquiryApi";
 import InquiryFormDialog from "./InquiryFormDialog";
@@ -38,15 +39,7 @@ import { formatDimensions, formatDeliveryDate } from "@/lib/utils/format";
 export default function InquiriesPage() {
 
   const {loading} = useAsync(getInquiries, [], {
-    onSuccess: (data) => {
-      setStore(
-        produce((s) => {
-          data.forEach((i) => {
-            s.entities.inquiry[i.id] = i;
-          });
-        }),
-      );
-    },
+    onSuccess: (data) => mergeEntities(data),
   });
 
   const inquiriesMap = useStore((s) => s.entities.inquiry);
@@ -62,6 +55,7 @@ export default function InquiriesPage() {
     if (!query) return true;
 
     return [
+      inquiry.id,
       createCode(inquiry),
       inquiry.barsRequested,
       inquiry.grade,
@@ -122,6 +116,7 @@ export default function InquiriesPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead>ID</TableHead>
                       <TableHead>Code</TableHead>
                       <TableHead>Bars</TableHead>
                       <TableHead>Grade</TableHead>
@@ -136,6 +131,7 @@ export default function InquiriesPage() {
                   <TableBody>
                     {filteredInquiries.map((inquiry) => (
                       <TableRow key={inquiry.id}>
+                        <TableCell data-label="ID">{inquiry.id}</TableCell>
                         <TableCell data-label="Code">{createCode(inquiry)}</TableCell>
                         <TableCell data-label="Bars">{inquiry.barsRequested}</TableCell>
                         <TableCell data-label="Grade">{inquiry.grade}</TableCell>

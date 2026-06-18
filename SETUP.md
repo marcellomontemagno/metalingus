@@ -81,6 +81,33 @@ CREATE TABLE user_role (
     PRIMARY KEY (user_id, role_id)
 );
 
+CREATE TYPE order_status AS ENUM (
+    'MATCHED',
+    'APPROVED',
+    'PAID',
+    'DISPATCHED',
+    'DELIVERED',
+    'CANCELLED'
+);
+
+-- "order" is a reserved word; always quote it.
+CREATE TABLE "order" (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    status order_status NOT NULL DEFAULT 'MATCHED',
+    inquiry_id UUID NOT NULL REFERENCES inquiry(id),
+    notes TEXT,
+    user_id UUID REFERENCES "user"(id)   -- the broker who created the order
+);
+
+CREATE TABLE order_offer (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    order_id UUID NOT NULL REFERENCES "order"(id) ON DELETE CASCADE,
+    offer_id UUID NOT NULL REFERENCES offer(id),
+    UNIQUE (order_id, offer_id)
+);
+
+INSERT INTO role (name) VALUES ('broker');
+
 ### Manual User Setup
 Since public signup is disabled, create a user manually and grant them both
 roles (`buyer` and `seller`) in one go. Change the email in the single place
@@ -97,4 +124,28 @@ INSERT INTO user_role (user_id, role_id)
 SELECT new_user.id, role.id
 FROM new_user, role
 ON CONFLICT (user_id, role_id) DO NOTHING;
+```
+
+The block above grants the user every role, including `broker`.
+
+### Seed a test order
+
+Order creation is not yet exposed in the UI (it lands in the transactional-write
+iteration), so seed one manually to exercise the read-only orders screen. This links the
+first inquiry to the two cheapest offers:
+
+```sql
+WITH new_order AS (
+    INSERT INTO "order" (status, inquiry_id, user_id)
+    SELECT 'MATCHED', i.id, u.id
+    FROM inquiry i
+    CROSS JOIN (SELECT id FROM "user" WHERE email = 'user@example.com') u
+    ORDER BY i.id
+    LIMIT 1
+    RETURNING id
+)
+INSERT INTO order_offer (order_id, offer_id)
+SELECT new_order.id, o.id
+FROM new_order, (SELECT id FROM offer ORDER BY price_per_meter LIMIT 2) o
+ON CONFLICT (order_id, offer_id) DO NOTHING;
 ```

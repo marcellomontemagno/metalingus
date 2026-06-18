@@ -18,6 +18,9 @@ export default async function AppShell({
   const items = [
     ...(has("buyer") ? [{ href: "/inquiries", label: "Inquiries", icon: "inbox" }] : []),
     ...(has("seller") ? [{ href: "/offers", label: "Offers", icon: "tag" }] : []),
+    ...(has("broker") || has("buyer") || has("seller")
+      ? [{ href: "/orders", label: "Orders", icon: "package" }]
+      : []),
   ];
 
   async function signOutAction() {
