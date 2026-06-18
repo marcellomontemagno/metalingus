@@ -10,6 +10,7 @@ import {
 
 import {
   Card,
+  CardAction,
   CardContent,
   CardHeader,
   CardTitle,
@@ -23,7 +24,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useStore } from "@/lib/store/store";
 import mergeEntities from "@/lib/store/mergeEntities";
@@ -31,8 +32,9 @@ import { useAsync } from "react-async-hook";
 import { getOrders } from "@/lib/api/orderApi";
 import { getInquiries } from "@/lib/api/inquiryApi";
 import { getOffers } from "@/lib/api/offerApi";
-import createCode from "@/lib/utils/createCode";
-import { formatOrderStatus, orderStatusVariant } from "@/lib/utils/format";
+import { formatOrderStatus, orderStatusVariant, formatPrice } from "@/lib/utils/format";
+import OrderFormDialog from "./OrderFormDialog";
+import OrderViewDialog from "./OrderViewDialog";
 
 export default function OrdersPage() {
   const { loading } = useAsync(async () => {
@@ -48,35 +50,49 @@ export default function OrdersPage() {
 
   const ordersMap = useStore((s) => s.entities.order);
   const orderOffersMap = useStore((s) => s.entities.orderOffer);
-  const inquiriesMap = useStore((s) => s.entities.inquiry);
   const offersMap = useStore((s) => s.entities.offer);
+  const auth = useStore((s) => s.authContext);
+
+  const isBroker = auth?.roles.includes("broker") ?? false;
 
   const orders = Object.values(ordersMap);
   const orderOffers = Object.values(orderOffersMap);
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [viewingId, setViewingId] = useState<string | null>(null);
 
   const rows = orders.map((order) => {
-    const inquiry = inquiriesMap[order.inquiryId] ?? null;
+    const margin = order.margin ?? 0;
     const offers = orderOffers
       .filter((oo) => oo.orderId === order.id)
       .map((oo) => offersMap[oo.offerId])
       .filter(Boolean);
+    // brokers see the raw price marked up; buyers already receive the marked-up
+    // price from the API, so it is shown as-is.
+    const priceText = offers
+      .map((o) => {
+        const price = isBroker ? o.pricePerMeter * (1 + margin) : o.pricePerMeter;
+        return formatPrice(Number(price.toFixed(2)), o.currency);
+      })
+      .join(", ");
     return {
       order,
-      inquiryCode: inquiry ? createCode(inquiry) : order.inquiryId,
-      offerCodes: offers.map((o) => createCode(o)),
+      offerIds: offers.map((o) => o.id),
+      priceText,
     };
   });
 
-  const filteredRows = rows.filter(({ order, inquiryCode, offerCodes }) => {
+  const filteredRows = rows.filter(({ order, offerIds, priceText }) => {
     const query = searchQuery.trim().toLowerCase();
     if (!query) return true;
 
     return [
-      inquiryCode,
+      order.inquiryId,
       formatOrderStatus(order.status),
-      offerCodes.join(" "),
+      offerIds.join(" "),
+      priceText,
       order.notes ?? "",
     ].some((field) => String(field).toLowerCase().includes(query));
   });
@@ -86,6 +102,19 @@ export default function OrdersPage() {
       <Card>
         <CardHeader>
           <CardTitle>Orders</CardTitle>
+          {isBroker && (
+            <CardAction>
+              <Button
+                size="sm"
+                onClick={() => {
+                  setEditingId(null);
+                  setFormOpen(true);
+                }}
+              >
+                New order
+              </Button>
+            </CardAction>
+          )}
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -122,21 +151,37 @@ export default function OrdersPage() {
                       <TableHead>Inquiry</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Offers</TableHead>
+                      <TableHead>Price</TableHead>
+                      {isBroker && <TableHead>Margin</TableHead>}
                       <TableHead>Notes</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredRows.map(({ order, inquiryCode, offerCodes }) => (
-                      <TableRow key={order.id}>
-                        <TableCell data-label="Inquiry">{inquiryCode}</TableCell>
+                    {filteredRows.map(({ order, offerIds, priceText }) => (
+                      <TableRow
+                        key={order.id}
+                        className="cursor-pointer"
+                        onClick={() => setViewingId(order.id)}
+                      >
+                        <TableCell data-label="Inquiry" className="font-mono">
+                          {order.inquiryId}
+                        </TableCell>
                         <TableCell data-label="Status">
                           <Badge variant={orderStatusVariant(order.status)}>
                             {formatOrderStatus(order.status)}
                           </Badge>
                         </TableCell>
-                        <TableCell data-label="Offers">
-                          {offerCodes.length > 0 ? offerCodes.join(", ") : "—"}
+                        <TableCell data-label="Offers" className="font-mono">
+                          {offerIds.length > 0 ? offerIds.join(", ") : "—"}
                         </TableCell>
+                        <TableCell data-label="Price">
+                          {priceText || "—"}
+                        </TableCell>
+                        {isBroker && (
+                          <TableCell data-label="Margin">
+                            {((order.margin ?? 0) * 100).toFixed(1)}%
+                          </TableCell>
+                        )}
                         <TableCell
                           data-label="Notes"
                           className="text-muted-foreground"
@@ -152,6 +197,26 @@ export default function OrdersPage() {
           )}
         </CardContent>
       </Card>
+
+      <OrderFormDialog
+        key={`${formOpen}-${editingId}`}
+        open={formOpen}
+        onOpenChange={setFormOpen}
+        orderId={editingId}
+        onSaved={() => setFormOpen(false)}
+      />
+
+      <OrderViewDialog
+        key={`view-${viewingId}`}
+        open={viewingId !== null}
+        onOpenChange={(o) => !o && setViewingId(null)}
+        orderId={viewingId}
+        onEdit={() => {
+          setEditingId(viewingId);
+          setViewingId(null);
+          setFormOpen(true);
+        }}
+      />
     </main>
   );
 }

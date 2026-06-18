@@ -1,6 +1,7 @@
 import { signOut } from "@/auth";
 import getAuthContext from "@/lib/auth/getAuthContext";
 import AppSidebar from "@/components/AppSidebar";
+import SetAuthContext from "@/components/SetAuthContext";
 import {
   SidebarInset,
   SidebarProvider,
@@ -30,6 +31,7 @@ export default async function AppShell({
 
   return (
     <SidebarProvider>
+      <SetAuthContext userId={user.id} roles={roles.map((r) => r.name)} />
       <AppSidebar items={items} userEmail={user.email} signOutAction={signOutAction} />
       <SidebarInset>
         <header className="flex h-12 shrink-0 items-center gap-2 border-b px-4">

@@ -95,6 +95,7 @@ CREATE TABLE "order" (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     status order_status NOT NULL DEFAULT 'MATCHED',
     inquiry_id UUID NOT NULL REFERENCES inquiry(id),
+    margin DECIMAL(6,4) NOT NULL DEFAULT 0,   -- broker markup, decimal fraction (0.10 = 10%)
     notes TEXT,
     user_id UUID REFERENCES "user"(id)   -- the broker who created the order
 );
@@ -130,14 +131,13 @@ The block above grants the user every role, including `broker`.
 
 ### Seed a test order
 
-Order creation is not yet exposed in the UI (it lands in the transactional-write
-iteration), so seed one manually to exercise the read-only orders screen. This links the
-first inquiry to the two cheapest offers:
+Brokers can now create orders from the UI. You can still seed one manually to exercise the
+screen quickly. This links the first inquiry to the two cheapest offers with a 10% margin:
 
 ```sql
 WITH new_order AS (
-    INSERT INTO "order" (status, inquiry_id, user_id)
-    SELECT 'MATCHED', i.id, u.id
+    INSERT INTO "order" (status, inquiry_id, margin, user_id)
+    SELECT 'MATCHED', i.id, 0.10, u.id
     FROM inquiry i
     CROSS JOIN (SELECT id FROM "user" WHERE email = 'user@example.com') u
     ORDER BY i.id

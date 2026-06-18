@@ -18,6 +18,22 @@ export async function GET() {
     rows = await sql`
       SELECT * FROM offer WHERE user_id = ${userId}
     `;
+  } else if (has("buyer")) {
+    // buyers only see offers linked to their own orders, and only at the
+    // marked-up price (seller price × (1 + order margin)) — never the raw
+    // seller price or the margin itself.
+    rows = await sql`
+      SELECT DISTINCT
+        f.id, f.bars_available, f.grade, f.shape, f.width, f.height,
+        f.thickness, f.bars_per_bundle, f.weight_per_meter,
+        (f.price_per_meter * (1 + o.margin)) AS price_per_meter,
+        f.currency, f.notes, f.user_id
+      FROM offer f
+      JOIN order_offer oo ON oo.offer_id = f.id
+      JOIN "order" o ON o.id = oo.order_id
+      JOIN inquiry i ON i.id = o.inquiry_id
+      WHERE i.user_id = ${userId}
+    `;
   }
   return Response.json({ offer: parseRows(offerSchema, rows) });
 }

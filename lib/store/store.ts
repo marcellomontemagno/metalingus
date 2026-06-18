@@ -6,6 +6,9 @@ import OrderOffer from '../model/orderOffer/OrderOffer';
 import User from '../model/user/User';
 
 export interface Store {
+  // the current authenticated user, seeded from the server (getAuthContext) so
+  // client components can branch on role without a separate React context.
+  authContext: { userId: string; roles: string[] } | null;
   entities: {
     inquiry: { [id: string]: Inquiry };
     offer: { [id: string]: Offer };
@@ -16,6 +19,7 @@ export interface Store {
 }
 
 export const initialState: Store = {
+  authContext: null,
   entities: {
     inquiry: {},
     offer: {},
