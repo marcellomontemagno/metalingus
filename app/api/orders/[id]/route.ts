@@ -1,7 +1,7 @@
 import { z, ZodError } from "zod";
 import { sql } from "@/lib/db/db";
 import getAuthContext from "@/lib/auth/getAuthContext";
-import { orderSchema } from "@/lib/model/order/Order";
+import { orderSchema, sanitizeOrder } from "@/lib/model/order/Order";
 import type Order from "@/lib/model/order/Order";
 import { orderOfferSchema } from "@/lib/model/orderOffer/OrderOffer";
 import parseRow from "@/lib/db/parseRow";
@@ -114,8 +114,7 @@ export async function PATCH(request: Request, { params }: Params) {
   const updated = await sql`
     UPDATE "order" SET status = ${fields.status} WHERE id = ${id} RETURNING *
   `;
-  const order = parseRow(orderSchema, updated[0]);
-  order.margin = null; // never expose the broker's markup to a buyer
+  const order = sanitizeOrder(parseRow(orderSchema, updated[0]), isBroker);
   const links = await sql`SELECT * FROM order_offer WHERE order_id = ${id}`;
   return Response.json({
     order: [order],

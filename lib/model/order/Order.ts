@@ -14,3 +14,15 @@ export const orderSchema = z.object({
 
 type Order = z.infer<typeof orderSchema>;
 export { type Order as default };
+
+export function sanitizeOrder(order: Order, isBroker: boolean): Order {
+  if (!isBroker) {
+    order.margin = null;
+  }
+  return order;
+}
+
+export function sanitizeOrders(orders: Order[], isBroker: boolean): Order[] {
+  orders.forEach((o) => sanitizeOrder(o, isBroker));
+  return orders;
+}

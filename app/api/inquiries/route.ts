@@ -4,6 +4,7 @@ import getAuthContext from "@/lib/auth/getAuthContext";
 import { inquirySchema } from "@/lib/model/inquiry/Inquiry";
 import type Inquiry from "@/lib/model/inquiry/Inquiry";
 import { userSchema } from "@/lib/model/user/User";
+import { orderSchema, sanitizeOrders } from "@/lib/model/order/Order";
 import parseRow from "@/lib/db/parseRow";
 import parseRows from "@/lib/db/parseRows";
 import insertClause from "@/lib/db/insertClause";
@@ -23,6 +24,19 @@ export async function GET() {
     `;
   }
   const inquiries = parseRows(inquirySchema, rows);
+  const inquiryIds = inquiries.map((i) => i.id);
+
+  let orderRows: Record<string, unknown>[] = [];
+  if (inquiryIds.length > 0) {
+    if (has("broker") || has("buyer")) {
+      orderRows = await sql`
+        SELECT * FROM "order" WHERE inquiry_id = ANY(${inquiryIds})
+      `;
+    }
+  }
+
+  const orders = sanitizeOrders(parseRows(orderSchema, orderRows), has("broker"));
+
   const userIds = [...new Set(inquiries.map((i) => i.userId))];
   const userRows = userIds.length
     ? await sql`SELECT * FROM "user" WHERE id = ANY(${userIds})`
@@ -30,6 +44,7 @@ export async function GET() {
   return Response.json({
     inquiry: inquiries,
     user: parseRows(userSchema, userRows),
+    order: orders,
   });
 }
 

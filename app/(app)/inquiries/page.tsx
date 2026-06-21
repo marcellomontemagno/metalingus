@@ -26,6 +26,7 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 import { produce } from "immer";
 import { useStore, setStore } from "@/lib/store/store";
 import mergeEntities from "@/lib/store/mergeEntities";
@@ -35,7 +36,7 @@ import { getInquiries, deleteInquiryApi } from "@/lib/api/inquiryApi";
 import InquiryFormDialog from "./InquiryFormDialog";
 import DeleteConfirmDialog from "@/components/DeleteConfirmDialog";
 import createCode from "@/lib/utils/createCode";
-import { formatDimensions, formatDeliveryDate } from "@/lib/utils/format";
+import { formatDimensions, formatDeliveryDate, formatOrderStatus, orderStatusVariant } from "@/lib/utils/format";
 
 export default function InquiriesPage() {
 
@@ -46,7 +47,11 @@ export default function InquiriesPage() {
   const auth = useAuthContext();
   const inquiriesMap = useStore((s) => s.entities.inquiry);
   const inquiries = Object.values(inquiriesMap);
+  const ordersMap = useStore((s) => s.entities.order);
+  const orders = Object.values(ordersMap);
   const usersMap = useStore((s) => s.entities.user);
+
+  const ordersByInquiryId = new Map(orders.map((o) => [o.inquiryId, o]));
 
   const [searchQuery, setSearchQuery] = useState("");
   const [formOpen, setFormOpen] = useState(false);
@@ -56,6 +61,10 @@ export default function InquiriesPage() {
   const filteredInquiries = inquiries.filter((inquiry) => {
     const query = searchQuery.trim().toLowerCase();
     if (!query) return true;
+
+    const order = ordersByInquiryId.get(inquiry.id);
+    const orderStatusStr = order ? formatOrderStatus(order.status) : "";
+    const orderIdStr = order ? order.id : "";
 
     return [
       inquiry.id,
@@ -68,6 +77,8 @@ export default function InquiriesPage() {
       formatDeliveryDate(inquiry.latestDeliveryDate),
       inquiry.notes ?? "",
       usersMap[inquiry.userId]?.email ?? "",
+      orderStatusStr,
+      orderIdStr,
     ].some((field) => String(field).toLowerCase().includes(query));
   });
 
@@ -125,6 +136,8 @@ export default function InquiriesPage() {
                       <TableHead>ID</TableHead>
                       <TableHead>Code</TableHead>
                       <TableHead>Owner</TableHead>
+                      <TableHead>Order Status</TableHead>
+                      <TableHead>Order ID</TableHead>
                       <TableHead>Bars</TableHead>
                       <TableHead>Grade</TableHead>
                       <TableHead>Shape</TableHead>
@@ -136,59 +149,74 @@ export default function InquiriesPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredInquiries.map((inquiry) => (
-                      <TableRow key={inquiry.id}>
-                        <TableCell data-label="ID">{inquiry.id}</TableCell>
-                        <TableCell data-label="Code">{createCode(inquiry)}</TableCell>
-                        <TableCell
-                          data-label="Owner"
-                          className="text-muted-foreground"
-                        >
-                          {usersMap[inquiry.userId]?.email ?? "—"}
-                        </TableCell>
-                        <TableCell data-label="Bars">{inquiry.barsRequested}</TableCell>
-                        <TableCell data-label="Grade">{inquiry.grade}</TableCell>
-                        <TableCell data-label="Shape">{inquiry.shape}</TableCell>
-                        <TableCell data-label="Dimensions (mm)">
-                          {formatDimensions(inquiry)}
-                        </TableCell>
-                        <TableCell data-label="Thickness (mm)">
-                          {inquiry.thickness}
-                        </TableCell>
-                        <TableCell data-label="Latest delivery">
-                          {formatDeliveryDate(inquiry.latestDeliveryDate)}
-                        </TableCell>
-                        <TableCell
-                          data-label="Notes"
-                          className="text-muted-foreground"
-                        >
-                          {inquiry.notes ?? "—"}
-                        </TableCell>
-                        <TableCell className="text-right max-md:before:hidden">
-                          <div className="flex justify-end gap-1">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              disabled={auth.userId !== inquiry.userId}
-                              onClick={() => {
-                                setEditingId(inquiry.id);
-                                setFormOpen(true);
-                              }}
-                            >
-                              Edit
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              disabled={auth.userId !== inquiry.userId}
-                              onClick={() => setDeletingId(inquiry.id)}
-                            >
-                              Delete
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {filteredInquiries.map((inquiry) => {
+                      const order = ordersByInquiryId.get(inquiry.id);
+                      return (
+                        <TableRow key={inquiry.id}>
+                          <TableCell data-label="ID">{inquiry.id}</TableCell>
+                          <TableCell data-label="Code">{createCode(inquiry)}</TableCell>
+                          <TableCell
+                            data-label="Owner"
+                            className="text-muted-foreground"
+                          >
+                            {usersMap[inquiry.userId]?.email ?? "—"}
+                          </TableCell>
+                          <TableCell data-label="Order Status">
+                            {order ? (
+                              <Badge variant={orderStatusVariant(order.status)}>
+                                {formatOrderStatus(order.status)}
+                              </Badge>
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                          </TableCell>
+                          <TableCell data-label="Order ID" className="font-mono text-xs">
+                            {order ? order.id : <span className="text-muted-foreground">—</span>}
+                          </TableCell>
+                          <TableCell data-label="Bars">{inquiry.barsRequested}</TableCell>
+                          <TableCell data-label="Grade">{inquiry.grade}</TableCell>
+                          <TableCell data-label="Shape">{inquiry.shape}</TableCell>
+                          <TableCell data-label="Dimensions (mm)">
+                            {formatDimensions(inquiry)}
+                          </TableCell>
+                          <TableCell data-label="Thickness (mm)">
+                            {inquiry.thickness}
+                          </TableCell>
+                          <TableCell data-label="Latest delivery">
+                            {formatDeliveryDate(inquiry.latestDeliveryDate)}
+                          </TableCell>
+                          <TableCell
+                            data-label="Notes"
+                            className="text-muted-foreground"
+                          >
+                            {inquiry.notes ?? "—"}
+                          </TableCell>
+                          <TableCell className="text-right max-md:before:hidden">
+                            <div className="flex justify-end gap-1">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                disabled={auth.userId !== inquiry.userId}
+                                onClick={() => {
+                                  setEditingId(inquiry.id);
+                                  setFormOpen(true);
+                                }}
+                              >
+                                Edit
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                disabled={auth.userId !== inquiry.userId}
+                                onClick={() => setDeletingId(inquiry.id)}
+                              >
+                                Delete
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               )}

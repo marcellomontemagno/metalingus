@@ -1,7 +1,7 @@
 import { z, ZodError } from "zod";
 import { sql } from "@/lib/db/db";
 import getAuthContext from "@/lib/auth/getAuthContext";
-import { orderSchema } from "@/lib/model/order/Order";
+import { orderSchema, sanitizeOrders } from "@/lib/model/order/Order";
 import type Order from "@/lib/model/order/Order";
 import { orderOfferSchema } from "@/lib/model/orderOffer/OrderOffer";
 import parseRow from "@/lib/db/parseRow";
@@ -71,10 +71,7 @@ export async function GET() {
     linkRows = [...byId.values()];
   }
 
-  const orders = parseRows(orderSchema, orderRows);
-  // margin is broker-only: never expose the markup to buyers/sellers. Buyers get
-  // the already-marked-up price via the offers endpoint instead.
-  if (!isBroker) orders.forEach((o) => (o.margin = null));
+  const orders = sanitizeOrders(parseRows(orderSchema, orderRows), isBroker);
 
   return Response.json({
     order: orders,

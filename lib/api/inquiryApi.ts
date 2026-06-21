@@ -1,10 +1,12 @@
 import type Inquiry from "../model/inquiry/Inquiry";
 import type User from "../model/user/User";
+import type Order from "../model/order/Order";
 import request from "./request";
 
 export async function getInquiries(): Promise<{
   inquiry: Inquiry[];
   user: User[];
+  order: Order[];
 }> {
   const res = await request("/api/inquiries");
   return res.json();
