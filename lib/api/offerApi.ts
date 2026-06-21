@@ -1,8 +1,15 @@
 import type Offer from "../model/offer/Offer";
 import type User from "../model/user/User";
+import type Order from "../model/order/Order";
+import type OrderOffer from "../model/orderOffer/OrderOffer";
 import request from "./request";
 
-export async function getOffers(): Promise<{ offer: Offer[]; user: User[] }> {
+export async function getOffers(): Promise<{
+  offer: Offer[];
+  user: User[];
+  order: Order[];
+  orderOffer: OrderOffer[];
+}> {
   const res = await request("/api/offers");
   return res.json();
 }

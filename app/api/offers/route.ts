@@ -4,6 +4,8 @@ import getAuthContext from "@/lib/auth/getAuthContext";
 import { offerSchema } from "@/lib/model/offer/Offer";
 import type Offer from "@/lib/model/offer/Offer";
 import { userSchema } from "@/lib/model/user/User";
+import { orderSchema, sanitizeOrders } from "@/lib/model/order/Order";
+import { orderOfferSchema } from "@/lib/model/orderOffer/OrderOffer";
 import parseRow from "@/lib/db/parseRow";
 import parseRows from "@/lib/db/parseRows";
 import insertClause from "@/lib/db/insertClause";
@@ -37,6 +39,20 @@ export async function GET() {
     `;
   }
   const offers = parseRows(offerSchema, rows);
+  const offerIds = offers.map((o) => o.id);
+
+  let linkRows: Record<string, unknown>[] = [];
+  let orderRows: Record<string, unknown>[] = [];
+  if (offerIds.length > 0) {
+    linkRows = await sql`SELECT * FROM order_offer WHERE offer_id = ANY(${offerIds})`;
+    const orderIds = [...new Set(linkRows.map((r) => r.order_id as string))];
+    if (orderIds.length > 0) {
+      orderRows = await sql`SELECT * FROM "order" WHERE id = ANY(${orderIds})`;
+    }
+  }
+
+  const orders = sanitizeOrders(parseRows(orderSchema, orderRows), has("broker"));
+
   const userIds = [...new Set(offers.map((o) => o.userId))];
   const userRows = userIds.length
     ? await sql`SELECT * FROM "user" WHERE id = ANY(${userIds})`
@@ -44,6 +60,8 @@ export async function GET() {
   return Response.json({
     offer: offers,
     user: parseRows(userSchema, userRows),
+    order: orders,
+    orderOffer: parseRows(orderOfferSchema, linkRows),
   });
 }
 

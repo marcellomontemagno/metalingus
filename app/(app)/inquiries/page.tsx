@@ -136,8 +136,7 @@ export default function InquiriesPage() {
                       <TableHead>ID</TableHead>
                       <TableHead>Code</TableHead>
                       <TableHead>Owner</TableHead>
-                      <TableHead>Order Status</TableHead>
-                      <TableHead>Order ID</TableHead>
+                      <TableHead>Order</TableHead>
                       <TableHead>Bars</TableHead>
                       <TableHead>Grade</TableHead>
                       <TableHead>Shape</TableHead>
@@ -161,17 +160,17 @@ export default function InquiriesPage() {
                           >
                             {usersMap[inquiry.userId]?.email ?? "—"}
                           </TableCell>
-                          <TableCell data-label="Order Status">
+                          <TableCell data-label="Order">
                             {order ? (
-                              <Badge variant={orderStatusVariant(order.status)}>
-                                {formatOrderStatus(order.status)}
-                              </Badge>
+                              <div className="flex items-center gap-2">
+                                <Badge variant={orderStatusVariant(order.status)}>
+                                  {formatOrderStatus(order.status)}
+                                </Badge>
+                                <span className="font-mono text-xs text-muted-foreground">{order.id}</span>
+                              </div>
                             ) : (
                               <span className="text-muted-foreground">—</span>
                             )}
-                          </TableCell>
-                          <TableCell data-label="Order ID" className="font-mono text-xs">
-                            {order ? order.id : <span className="text-muted-foreground">—</span>}
                           </TableCell>
                           <TableCell data-label="Bars">{inquiry.barsRequested}</TableCell>
                           <TableCell data-label="Grade">{inquiry.grade}</TableCell>

@@ -173,7 +173,9 @@ export default function OrdersPage() {
                           </Badge>
                         </TableCell>
                         <TableCell data-label="Offers" className="font-mono">
-                          {offerIds.length > 0 ? offerIds.join(", ") : "—"}
+                          {offerIds.length > 0 && offerIds.map((id)=>{
+                            return <p key={id} className="text-sm text-muted-foreground">{id}</p>
+                          })}
                         </TableCell>
                         <TableCell data-label="Price">
                           {priceText || "—"}
