@@ -1,13 +1,15 @@
 import type Order from "./Order";
+import type WithRequired from "../../utils/WithRequired";
 
-export default function createOrder(overrides: Partial<Order> = {}): Order {
+export default function createOrder(
+  input: WithRequired<Order, "userId">,
+): Order {
   return {
     id: "",
     status: "MATCHED",
     inquiryId: "",
     margin: 0,
     notes: null,
-    userId: null,
-    ...overrides,
+    ...input,
   };
 }

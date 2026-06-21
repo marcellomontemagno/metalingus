@@ -9,7 +9,7 @@ export const orderSchema = z.object({
   // for buyers so the seller's price and margin never reach them.
   margin: z.coerce.number().min(0).nullable(),
   notes: z.string().nullable(),
-  userId: z.uuid().nullable(),
+  userId: z.uuid(),
 });
 
 type Order = z.infer<typeof orderSchema>;

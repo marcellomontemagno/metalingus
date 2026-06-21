@@ -3,6 +3,7 @@ import { sql } from "@/lib/db/db";
 import getAuthContext from "@/lib/auth/getAuthContext";
 import { inquirySchema } from "@/lib/model/inquiry/Inquiry";
 import type Inquiry from "@/lib/model/inquiry/Inquiry";
+import { userSchema } from "@/lib/model/user/User";
 import parseRow from "@/lib/db/parseRow";
 import parseRows from "@/lib/db/parseRows";
 import insertClause from "@/lib/db/insertClause";
@@ -21,7 +22,15 @@ export async function GET() {
       SELECT * FROM inquiry WHERE user_id = ${userId}
     `;
   }
-  return Response.json({ inquiry: parseRows(inquirySchema, rows) });
+  const inquiries = parseRows(inquirySchema, rows);
+  const userIds = [...new Set(inquiries.map((i) => i.userId))];
+  const userRows = userIds.length
+    ? await sql`SELECT * FROM "user" WHERE id = ANY(${userIds})`
+    : [];
+  return Response.json({
+    inquiry: inquiries,
+    user: parseRows(userSchema, userRows),
+  });
 }
 
 export async function POST(request: Request) {
@@ -37,7 +46,7 @@ export async function POST(request: Request) {
       err instanceof ZodError ? err.issues[0].message : "Invalid request body";
     return new Response(message, { status: 400 });
   }
-  if (fields.userId && fields.userId !== userId) {
+  if (fields.userId !== userId) {
     return new Response("Cannot create an inquiry for another user", {
       status: 403,
     });

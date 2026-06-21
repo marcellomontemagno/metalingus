@@ -22,7 +22,7 @@ export async function PATCH(request: Request, { params }: Params) {
       err instanceof ZodError ? err.issues[0].message : "Invalid request body";
     return new Response(message, { status: 400 });
   }
-  if (fields.userId && fields.userId !== userId) {
+  if (fields.userId !== userId) {
     return new Response("Cannot reassign an inquiry to another user", {
       status: 403,
     });

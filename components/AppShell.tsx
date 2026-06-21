@@ -31,14 +31,15 @@ export default async function AppShell({
 
   return (
     <SidebarProvider>
-      <SetAuthContext userId={user.id} roles={roles.map((r) => r.name)} />
-      <AppSidebar items={items} userEmail={user.email} signOutAction={signOutAction} />
-      <SidebarInset>
-        <header className="flex h-12 shrink-0 items-center gap-2 border-b px-4">
-          <SidebarTrigger />
-        </header>
-        <div className="flex-1 overflow-auto">{children}</div>
-      </SidebarInset>
+      <SetAuthContext userId={user.id} roles={roles.map((r) => r.name)}>
+        <AppSidebar items={items} userEmail={user.email} signOutAction={signOutAction} />
+        <SidebarInset>
+          <header className="flex h-12 shrink-0 items-center gap-2 border-b px-4">
+            <SidebarTrigger />
+          </header>
+          <div className="flex-1 overflow-auto">{children}</div>
+        </SidebarInset>
+      </SetAuthContext>
     </SidebarProvider>
   );
 }

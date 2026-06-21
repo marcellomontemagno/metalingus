@@ -13,7 +13,7 @@ export const inquirySchema = z.object({
   height: z.coerce.number().positive(),
   thickness: z.coerce.number().positive(),
   notes: z.string().nullable(),
-  userId: z.uuid().nullable(),
+  userId: z.uuid(),
 });
 
 type Inquiry = z.infer<typeof inquirySchema>;

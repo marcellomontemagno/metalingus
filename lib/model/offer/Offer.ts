@@ -16,7 +16,7 @@ export const offerSchema = z.object({
   pricePerMeter: z.coerce.number().positive(),
   currency: currencySchema,
   notes: z.string().nullable(),
-  userId: z.uuid().nullable(),
+  userId: z.uuid(),
 });
 
 type Offer = z.infer<typeof offerSchema>;

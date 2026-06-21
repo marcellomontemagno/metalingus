@@ -19,7 +19,7 @@ CREATE TABLE inquiry (
     height DECIMAL(8,2) NOT NULL,
     thickness DECIMAL(6,2) NOT NULL,
     notes TEXT,
-    user_id UUID REFERENCES "user"(id)
+    user_id UUID NOT NULL REFERENCES "user"(id)
 );
 
 CREATE TABLE offer (
@@ -35,7 +35,7 @@ CREATE TABLE offer (
     price_per_meter DECIMAL(10,4) NOT NULL,
     currency CHAR(3) NOT NULL DEFAULT 'EUR',
     notes TEXT,
-    user_id UUID REFERENCES "user"(id)
+    user_id UUID NOT NULL REFERENCES "user"(id)
 );
 
 CREATE TABLE "user" (
@@ -97,7 +97,7 @@ CREATE TABLE "order" (
     inquiry_id UUID NOT NULL REFERENCES inquiry(id),
     margin DECIMAL(6,4) NOT NULL DEFAULT 0,   -- broker markup, decimal fraction (0.10 = 10%)
     notes TEXT,
-    user_id UUID REFERENCES "user"(id)   -- the broker who created the order
+    user_id UUID NOT NULL REFERENCES "user"(id)   -- the broker who created the order
 );
 
 CREATE TABLE order_offer (

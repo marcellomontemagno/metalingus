@@ -19,6 +19,7 @@ import { FieldError } from "@/components/ui/field";
 import EnumCombobox from "@/components/EnumCombobox";
 import { produce } from "immer";
 import { useStore, setStore } from "@/lib/store/store";
+import useAuthContext from "@/lib/store/useAuthContext";
 import mergeEntities from "@/lib/store/mergeEntities";
 import { createOrderApi, updateOrderApi } from "@/lib/api/orderApi";
 import { orderSchema } from "@/lib/model/order/Order";
@@ -45,6 +46,7 @@ export default function OrderFormDialog({
   onSaved: () => void;
 }) {
   const order = useStore((s) => (orderId ? s.entities.order[orderId] : null));
+  const auth = useAuthContext();
   const inquiriesMap = useStore((s) => s.entities.inquiry);
   const offersMap = useStore((s) => s.entities.offer);
   const orderOffersMap = useStore((s) => s.entities.orderOffer);
@@ -94,7 +96,7 @@ export default function OrderFormDialog({
       inquiryId,
       margin,
       notes: notes || null,
-      userId: order?.userId ?? null,
+      userId: order?.userId ?? auth.userId,
     };
 
     const result = orderSchema.safeParse(payload);

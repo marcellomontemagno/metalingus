@@ -44,6 +44,7 @@ export default function InquiriesPage() {
 
   const inquiriesMap = useStore((s) => s.entities.inquiry);
   const inquiries = Object.values(inquiriesMap);
+  const usersMap = useStore((s) => s.entities.user);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [formOpen, setFormOpen] = useState(false);
@@ -64,6 +65,7 @@ export default function InquiriesPage() {
       inquiry.thickness,
       formatDeliveryDate(inquiry.latestDeliveryDate),
       inquiry.notes ?? "",
+      usersMap[inquiry.userId]?.email ?? "",
     ].some((field) => String(field).toLowerCase().includes(query));
   });
 
@@ -118,6 +120,7 @@ export default function InquiriesPage() {
                     <TableRow>
                       <TableHead>ID</TableHead>
                       <TableHead>Code</TableHead>
+                      <TableHead>Owner</TableHead>
                       <TableHead>Bars</TableHead>
                       <TableHead>Grade</TableHead>
                       <TableHead>Shape</TableHead>
@@ -133,6 +136,12 @@ export default function InquiriesPage() {
                       <TableRow key={inquiry.id}>
                         <TableCell data-label="ID">{inquiry.id}</TableCell>
                         <TableCell data-label="Code">{createCode(inquiry)}</TableCell>
+                        <TableCell
+                          data-label="Owner"
+                          className="text-muted-foreground"
+                        >
+                          {usersMap[inquiry.userId]?.email ?? "—"}
+                        </TableCell>
                         <TableCell data-label="Bars">{inquiry.barsRequested}</TableCell>
                         <TableCell data-label="Grade">{inquiry.grade}</TableCell>
                         <TableCell data-label="Shape">{inquiry.shape}</TableCell>

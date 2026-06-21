@@ -20,6 +20,7 @@ import { shapeSchema } from "@/lib/model/Shape";
 import { inquirySchema } from "@/lib/model/inquiry/Inquiry";
 import { produce } from "immer";
 import { useStore, setStore } from "@/lib/store/store";
+import useAuthContext from "@/lib/store/useAuthContext";
 import mergeEntities from "@/lib/store/mergeEntities";
 import { createInquiryApi, updateInquiryApi } from "@/lib/api/inquiryApi";
 import type Inquiry from "@/lib/model/inquiry/Inquiry";
@@ -34,8 +35,6 @@ const toForm = (i: Inquiry): FormState =>
     Object.entries(i).map(([k, v]) => [k, v ? String(v) : ""]),
   ) as FormState;
 
-const EMPTY = toForm(createInquiry());
-
 export default function InquiryFormDialog({
   open,
   onOpenChange,
@@ -48,7 +47,10 @@ export default function InquiryFormDialog({
   onSaved: () => void;
 }) {
   const inquiry = useStore((s) => (inquiryId ? s.entities.inquiry[inquiryId] : null));
-  const [form, setForm] = useState<FormState>(inquiry ? toForm(inquiry) : EMPTY);
+  const auth = useAuthContext();
+  const [form, setForm] = useState<FormState>(() =>
+    toForm(inquiry ?? createInquiry({ userId: auth.userId })),
+  );
   const [fieldErrors, setFieldErrors] = useState<
     Partial<Record<keyof Inquiry, string>>
   >({});
@@ -96,7 +98,7 @@ export default function InquiryFormDialog({
       height: Number(form.height),
       thickness: Number(form.thickness),
       notes: form.notes || null,
-      userId: inquiry?.userId ?? null,
+      userId: inquiry?.userId ?? auth.userId,
     };
 
     const result = inquirySchema.safeParse(payload);

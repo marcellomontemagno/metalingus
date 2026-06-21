@@ -1,20 +1,23 @@
 "use client";
 
 import { useEffect } from "react";
-import { setStore } from "@/lib/store/store";
+import { useStore, setStore } from "@/lib/store/store";
 
-// Seeds the server-resolved auth context into the client store on mount, so
-// client components can read role/user via useStore((s) => s.authContext)
-// instead of a React context provider.
 export default function SetAuthContext({
   userId,
   roles,
+  children,
 }: {
   userId: string;
   roles: string[];
+  children: React.ReactNode;
 }) {
+  const auth = useStore((s) => s.authContext);
+
   useEffect(() => {
     setStore({ authContext: { userId, roles } });
   }, [userId, roles]);
-  return null;
+
+  if (!auth) return null;
+  return <>{children}</>;
 }

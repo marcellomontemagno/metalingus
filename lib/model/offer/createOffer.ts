@@ -1,6 +1,9 @@
 import type Offer from "./Offer";
+import type WithRequired from "../../utils/WithRequired";
 
-export default function createOffer(overrides: Partial<Offer> = {}): Offer {
+export default function createOffer(
+  input: WithRequired<Offer, "userId">,
+): Offer {
   return {
     id: "",
     barsAvailable: 0,
@@ -14,7 +17,6 @@ export default function createOffer(overrides: Partial<Offer> = {}): Offer {
     pricePerMeter: 0,
     currency: "EUR",
     notes: null,
-    userId: null,
-    ...overrides,
+    ...input,
   };
 }

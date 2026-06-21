@@ -27,6 +27,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useStore } from "@/lib/store/store";
+import useAuthContext from "@/lib/store/useAuthContext";
 import mergeEntities from "@/lib/store/mergeEntities";
 import { useAsync } from "react-async-hook";
 import { getOrders } from "@/lib/api/orderApi";
@@ -51,9 +52,9 @@ export default function OrdersPage() {
   const ordersMap = useStore((s) => s.entities.order);
   const orderOffersMap = useStore((s) => s.entities.orderOffer);
   const offersMap = useStore((s) => s.entities.offer);
-  const auth = useStore((s) => s.authContext);
+  const auth = useAuthContext();
 
-  const isBroker = auth?.roles.includes("broker") ?? false;
+  const isBroker = auth.roles.includes("broker");
 
   const orders = Object.values(ordersMap);
   const orderOffers = Object.values(orderOffersMap);

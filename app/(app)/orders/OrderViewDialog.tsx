@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import EnumCombobox from "@/components/EnumCombobox";
 import { produce } from "immer";
 import { useStore, setStore } from "@/lib/store/store";
+import useAuthContext from "@/lib/store/useAuthContext";
 import mergeEntities from "@/lib/store/mergeEntities";
 import { updateOrderApi } from "@/lib/api/orderApi";
 import { orderStatusSchema } from "@/lib/model/OrderStatus";
@@ -40,13 +41,13 @@ export default function OrderViewDialog({
   const order = useStore((s) => (orderId ? s.entities.order[orderId] : null));
   const offersMap = useStore((s) => s.entities.offer);
   const orderOffersMap = useStore((s) => s.entities.orderOffer);
-  const auth = useStore((s) => s.authContext);
+  const auth = useAuthContext();
 
   const [status, setStatus] = useState<OrderStatus>(order?.status ?? "MATCHED");
 
   if (!order) return null;
 
-  const has = (r: string) => auth?.roles.includes(r) ?? false;
+  const has = (r: string) => auth.roles.includes(r);
   const isBroker = has("broker");
   const isBuyer = has("buyer") && !isBroker;
 

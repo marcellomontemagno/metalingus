@@ -1,7 +1,11 @@
 import type Inquiry from "../model/inquiry/Inquiry";
+import type User from "../model/user/User";
 import request from "./request";
 
-export async function getInquiries(): Promise<{ inquiry: Inquiry[] }> {
+export async function getInquiries(): Promise<{
+  inquiry: Inquiry[];
+  user: User[];
+}> {
   const res = await request("/api/inquiries");
   return res.json();
 }

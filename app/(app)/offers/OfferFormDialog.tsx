@@ -21,6 +21,7 @@ import { currencySchema } from "@/lib/model/Currency";
 import { offerSchema } from "@/lib/model/offer/Offer";
 import { produce } from "immer";
 import { useStore, setStore } from "@/lib/store/store";
+import useAuthContext from "@/lib/store/useAuthContext";
 import mergeEntities from "@/lib/store/mergeEntities";
 import { createOfferApi, updateOfferApi } from "@/lib/api/offerApi";
 import type Offer from "@/lib/model/offer/Offer";
@@ -34,8 +35,6 @@ const toForm = (o: Offer): FormState =>
     Object.entries(o).map(([k, v]) => [k, v ? String(v) : ""]),
   ) as FormState;
 
-const EMPTY = toForm(createOffer());
-
 export default function OfferFormDialog({
   open,
   onOpenChange,
@@ -48,7 +47,10 @@ export default function OfferFormDialog({
   onSaved: () => void;
 }) {
   const offer = useStore((s) => (offerId ? s.entities.offer[offerId] : null));
-  const [form, setForm] = useState<FormState>(offer ? toForm(offer) : EMPTY);
+  const auth = useAuthContext();
+  const [form, setForm] = useState<FormState>(() =>
+    toForm(offer ?? createOffer({ userId: auth.userId })),
+  );
   const [fieldErrors, setFieldErrors] = useState<
     Partial<Record<keyof Offer, string>>
   >({});
@@ -99,7 +101,7 @@ export default function OfferFormDialog({
       pricePerMeter: Number(form.pricePerMeter),
       currency: form.currency as Offer["currency"],
       notes: form.notes || null,
-      userId: offer?.userId ?? null,
+      userId: offer?.userId ?? auth.userId,
     };
 
     const result = offerSchema.safeParse(payload);

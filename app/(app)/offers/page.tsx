@@ -43,6 +43,7 @@ export default function OffersPage() {
 
   const offersMap = useStore((s) => s.entities.offer);
   const offers = Object.values(offersMap);
+  const usersMap = useStore((s) => s.entities.user);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [formOpen, setFormOpen] = useState(false);
@@ -65,6 +66,7 @@ export default function OffersPage() {
       offer.weightPerMeter,
       formatPrice(offer.pricePerMeter, offer.currency),
       offer.notes ?? "",
+      usersMap[offer.userId]?.email ?? "",
     ].some((field) => String(field).toLowerCase().includes(query));
   });
 
@@ -130,6 +132,7 @@ export default function OffersPage() {
                     <TableRow>
                       <TableHead>ID</TableHead>
                       <TableHead>Code</TableHead>
+                      <TableHead>Owner</TableHead>
                       <TableHead>Bars</TableHead>
                       <TableHead>Grade</TableHead>
                       <TableHead>Shape</TableHead>
@@ -147,6 +150,12 @@ export default function OffersPage() {
                       <TableRow key={offer.id}>
                         <TableCell data-label="ID">{offer.id}</TableCell>
                         <TableCell data-label="Code">{createCode(offer)}</TableCell>
+                        <TableCell
+                          data-label="Owner"
+                          className="text-muted-foreground"
+                        >
+                          {usersMap[offer.userId]?.email ?? "—"}
+                        </TableCell>
                         <TableCell data-label="Bars">{offer.barsAvailable}</TableCell>
                         <TableCell data-label="Grade">{offer.grade}</TableCell>
                         <TableCell data-label="Shape">{offer.shape}</TableCell>
