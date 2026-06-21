@@ -7,6 +7,6 @@ export default async function InquiriesLayout({
   children: React.ReactNode;
 }>) {
   const { roles } = await getAuthContext();
-  if (!roles.some((r) => r.name === "buyer")) redirect("/");
+  if (!roles.some((r) => r.name === "buyer" || r.name === "broker")) redirect("/");
   return children;
 }

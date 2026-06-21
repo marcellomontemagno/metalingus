@@ -7,6 +7,6 @@ export default async function OffersLayout({
   children: React.ReactNode;
 }>) {
   const { roles } = await getAuthContext();
-  if (!roles.some((r) => r.name === "seller")) redirect("/");
+  if (!roles.some((r) => r.name === "seller" || r.name === "broker")) redirect("/");
   return children;
 }

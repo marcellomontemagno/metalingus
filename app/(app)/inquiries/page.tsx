@@ -29,6 +29,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { produce } from "immer";
 import { useStore, setStore } from "@/lib/store/store";
 import mergeEntities from "@/lib/store/mergeEntities";
+import useAuthContext from "@/lib/store/useAuthContext";
 import { useAsync } from "react-async-hook";
 import { getInquiries, deleteInquiryApi } from "@/lib/api/inquiryApi";
 import InquiryFormDialog from "./InquiryFormDialog";
@@ -42,6 +43,7 @@ export default function InquiriesPage() {
     onSuccess: (data) => mergeEntities(data),
   });
 
+  const auth = useAuthContext();
   const inquiriesMap = useStore((s) => s.entities.inquiry);
   const inquiries = Object.values(inquiriesMap);
   const usersMap = useStore((s) => s.entities.user);
@@ -74,17 +76,19 @@ export default function InquiriesPage() {
       <Card>
         <CardHeader>
           <CardTitle>My Inquiries</CardTitle>
-          <CardAction>
-            <Button
-              size="sm"
-              onClick={() => {
-                setEditingId(null);
-                setFormOpen(true);
-              }}
-            >
-              New inquiry
-            </Button>
-          </CardAction>
+          {auth.roles.includes("buyer") && (
+            <CardAction>
+              <Button
+                size="sm"
+                onClick={() => {
+                  setEditingId(null);
+                  setFormOpen(true);
+                }}
+              >
+                New inquiry
+              </Button>
+            </CardAction>
+          )}
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -165,6 +169,7 @@ export default function InquiriesPage() {
                             <Button
                               size="sm"
                               variant="ghost"
+                              disabled={auth.userId !== inquiry.userId}
                               onClick={() => {
                                 setEditingId(inquiry.id);
                                 setFormOpen(true);
@@ -175,6 +180,7 @@ export default function InquiriesPage() {
                             <Button
                               size="sm"
                               variant="destructive"
+                              disabled={auth.userId !== inquiry.userId}
                               onClick={() => setDeletingId(inquiry.id)}
                             >
                               Delete

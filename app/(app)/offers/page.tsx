@@ -29,6 +29,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { produce } from "immer";
 import { useStore, setStore } from "@/lib/store/store";
 import mergeEntities from "@/lib/store/mergeEntities";
+import useAuthContext from "@/lib/store/useAuthContext";
 import { useAsync } from "react-async-hook";
 import { getOffers, deleteOfferApi } from "@/lib/api/offerApi";
 import OfferFormDialog from "./OfferFormDialog";
@@ -41,6 +42,7 @@ export default function OffersPage() {
     onSuccess: (data) => mergeEntities(data),
   });
 
+  const auth = useAuthContext();
   const offersMap = useStore((s) => s.entities.offer);
   const offers = Object.values(offersMap);
   const usersMap = useStore((s) => s.entities.user);
@@ -86,17 +88,19 @@ export default function OffersPage() {
       <Card>
         <CardHeader>
           <CardTitle>My Offers</CardTitle>
-          <CardAction>
-            <Button
-              size="sm"
-              onClick={() => {
-                setEditingId(null);
-                setFormOpen(true);
-              }}
-            >
-              New offer
-            </Button>
-          </CardAction>
+          {auth.roles.includes("seller") && (
+            <CardAction>
+              <Button
+                size="sm"
+                onClick={() => {
+                  setEditingId(null);
+                  setFormOpen(true);
+                }}
+              >
+                New offer
+              </Button>
+            </CardAction>
+          )}
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -185,6 +189,7 @@ export default function OffersPage() {
                             <Button
                               size="sm"
                               variant="ghost"
+                              disabled={auth.userId !== offer.userId}
                               onClick={() => {
                                 setEditingId(offer.id);
                                 setFormOpen(true);
@@ -195,6 +200,7 @@ export default function OffersPage() {
                             <Button
                               size="sm"
                               variant="destructive"
+                              disabled={auth.userId !== offer.userId}
                               onClick={() => setDeletingId(offer.id)}
                             >
                               Delete
