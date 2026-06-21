@@ -27,6 +27,11 @@ export async function PATCH(request: Request, { params }: Params) {
       status: 403,
     });
   }
+  const linked = await sql`SELECT 1 FROM order_offer WHERE offer_id = ${id} LIMIT 1`;
+  if (linked[0])
+    return new Response("Cannot modify an offer that is part of an order", {
+      status: 403,
+    });
   const { set, where, values } = setClause({
     fields,
     where: { id, userId },
@@ -45,6 +50,11 @@ export async function DELETE(_request: Request, { params }: Params) {
     return new Response("Forbidden", { status: 403 });
   const userId = ctx.user.id;
   const { id } = await params;
+  const linked = await sql`SELECT 1 FROM order_offer WHERE offer_id = ${id} LIMIT 1`;
+  if (linked[0])
+    return new Response("Cannot delete an offer that is part of an order", {
+      status: 403,
+    });
   const rows = await sql`
     DELETE FROM offer
     WHERE id = ${id} AND user_id = ${userId}

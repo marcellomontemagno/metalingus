@@ -228,7 +228,10 @@ export default function OffersPage() {
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                disabled={auth.userId !== offer.userId}
+                                disabled={
+                                  auth.userId !== offer.userId ||
+                                  linkedOrders.length > 0
+                                }
                                 onClick={() => {
                                   setEditingId(offer.id);
                                   setFormOpen(true);
@@ -239,7 +242,10 @@ export default function OffersPage() {
                               <Button
                                 size="sm"
                                 variant="destructive"
-                                disabled={auth.userId !== offer.userId}
+                                disabled={
+                                  auth.userId !== offer.userId ||
+                                  linkedOrders.length > 0
+                                }
                                 onClick={() => setDeletingId(offer.id)}
                               >
                                 Delete

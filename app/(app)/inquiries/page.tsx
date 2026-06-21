@@ -195,7 +195,7 @@ export default function InquiriesPage() {
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                disabled={auth.userId !== inquiry.userId}
+                                disabled={auth.userId !== inquiry.userId || !!order}
                                 onClick={() => {
                                   setEditingId(inquiry.id);
                                   setFormOpen(true);
@@ -206,7 +206,7 @@ export default function InquiriesPage() {
                               <Button
                                 size="sm"
                                 variant="destructive"
-                                disabled={auth.userId !== inquiry.userId}
+                                disabled={auth.userId !== inquiry.userId || !!order}
                                 onClick={() => setDeletingId(inquiry.id)}
                               >
                                 Delete
