@@ -149,8 +149,9 @@ export default function OrdersPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Inquiry</TableHead>
+                      <TableHead>ID</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead>Inquiry</TableHead>
                       <TableHead>Offers</TableHead>
                       <TableHead>Price</TableHead>
                       {isBroker && <TableHead>Margin</TableHead>}
@@ -164,13 +165,16 @@ export default function OrdersPage() {
                         className="cursor-pointer"
                         onClick={() => setViewingId(order.id)}
                       >
-                        <TableCell data-label="Inquiry" className="font-mono">
-                          {order.inquiryId}
+                        <TableCell data-label="ID" className="font-mono">
+                          {order.id}
                         </TableCell>
                         <TableCell data-label="Status">
                           <Badge variant={orderStatusVariant(order.status)}>
                             {formatOrderStatus(order.status)}
                           </Badge>
+                        </TableCell>
+                        <TableCell data-label="Inquiry" className="font-mono">
+                          {order.inquiryId}
                         </TableCell>
                         <TableCell data-label="Offers" className="font-mono">
                           {offerIds.length > 0 && offerIds.map((id)=>{

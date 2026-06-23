@@ -25,7 +25,10 @@ import {
   formatOrderStatus,
   orderStatusVariant,
   formatPrice,
+  formatDimensions,
+  formatDeliveryDate,
 } from "@/lib/utils/format";
+import createCode from "@/lib/utils/createCode";
 
 export default function OrderViewDialog({
   open,
@@ -41,6 +44,8 @@ export default function OrderViewDialog({
   const order = useStore((s) => (orderId ? s.entities.order[orderId] : null));
   const offersMap = useStore((s) => s.entities.offer);
   const orderOffersMap = useStore((s) => s.entities.orderOffer);
+  const inquiriesMap = useStore((s) => s.entities.inquiry);
+  const usersMap = useStore((s) => s.entities.user);
   const auth = useAuthContext();
 
   const [status, setStatus] = useState<OrderStatus>(order?.status ?? "MATCHED");
@@ -56,6 +61,7 @@ export default function OrderViewDialog({
   );
   const offerIds = links.map((oo) => oo.offerId);
   const linkedOffers = offerIds.map((id) => offersMap[id]).filter(Boolean);
+  const inquiry = inquiriesMap[order.inquiryId];
   const margin = order.margin ?? 0;
 
   async function applyStatus(next: OrderStatus) {
@@ -87,16 +93,48 @@ export default function OrderViewDialog({
             <span className="font-mono">{order.id}</span>
           </div>
           <div className="flex flex-col gap-1">
-            <Label>Inquiry</Label>
-            <span className="font-mono">{order.inquiryId}</span>
-          </div>
-          <div className="flex flex-col gap-1">
             <Label>Status</Label>
             <span>
               <Badge variant={orderStatusVariant(order.status)}>
                 {formatOrderStatus(order.status)}
               </Badge>
             </span>
+          </div>
+          <div className="flex flex-col gap-1">
+            <Label>Inquiry</Label>
+            {!inquiry ? (
+              <span className="font-mono">{order.inquiryId}</span>
+            ) : (
+              <div className="flex flex-col gap-1.5 rounded-md border p-2">
+                <span className="font-mono text-xs text-muted-foreground">
+                  {inquiry.id}
+                </span>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                  <span className="text-muted-foreground">Code</span>
+                  <span className="font-mono">{createCode(inquiry)}</span>
+                  {isBroker && (
+                    <>
+                      <span className="text-muted-foreground">Owner</span>
+                      <span>{usersMap[inquiry.userId]?.email ?? "—"}</span>
+                    </>
+                  )}
+                  <span className="text-muted-foreground">Bars requested</span>
+                  <span>{inquiry.barsRequested}</span>
+                  <span className="text-muted-foreground">Grade</span>
+                  <span>{inquiry.grade}</span>
+                  <span className="text-muted-foreground">Shape</span>
+                  <span>{inquiry.shape}</span>
+                  <span className="text-muted-foreground">Dimensions (mm)</span>
+                  <span>{formatDimensions(inquiry)}</span>
+                  <span className="text-muted-foreground">Thickness (mm)</span>
+                  <span>{inquiry.thickness}</span>
+                  <span className="text-muted-foreground">Latest delivery</span>
+                  <span>{formatDeliveryDate(inquiry.latestDeliveryDate)}</span>
+                  <span className="text-muted-foreground">Notes</span>
+                  <span>{inquiry.notes ?? "—"}</span>
+                </div>
+              </div>
+            )}
           </div>
 
           {isBroker && (
@@ -111,19 +149,61 @@ export default function OrderViewDialog({
             {linkedOffers.length === 0 ? (
               <span className="text-muted-foreground">—</span>
             ) : (
-              linkedOffers.map((offer) => (
-                <div key={offer.id} className="flex justify-between gap-2">
-                  <span className="font-mono">{offer.id}</span>
-                  <span className="text-muted-foreground">
-                    {isBroker
-                      ? `${formatPrice(offer.pricePerMeter, offer.currency)}/m → ${formatPrice(
-                          Number((offer.pricePerMeter * (1 + margin)).toFixed(2)),
-                          offer.currency,
-                        )}/m`
-                      : `${formatPrice(offer.pricePerMeter, offer.currency)}/m`}
-                  </span>
-                </div>
-              ))
+              <div className="flex flex-col gap-2">
+                {linkedOffers.map((offer) => (
+                  <div
+                    key={offer.id}
+                    className="flex flex-col gap-1.5 rounded-md border p-2"
+                  >
+                    <span className="font-mono text-xs text-muted-foreground">
+                      {offer.id}
+                    </span>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                      <span className="text-muted-foreground">Code</span>
+                      <span className="font-mono">{createCode(offer)}</span>
+                      {isBroker && (
+                        <>
+                          <span className="text-muted-foreground">Owner</span>
+                          <span>{usersMap[offer.userId]?.email ?? "—"}</span>
+                        </>
+                      )}
+                      <span className="text-muted-foreground">
+                        Bars available
+                      </span>
+                      <span>{offer.barsAvailable}</span>
+                      <span className="text-muted-foreground">Bars/bundle</span>
+                      <span>{offer.barsPerBundle}</span>
+                      <span className="text-muted-foreground">
+                        Weight/m (kg)
+                      </span>
+                      <span>{offer.weightPerMeter}</span>
+                      <span className="text-muted-foreground">Price/m</span>
+                      <span>
+                        {isBroker
+                          ? `${formatPrice(offer.pricePerMeter, offer.currency)}/m → ${formatPrice(
+                            Number(
+                              (offer.pricePerMeter * (1 + margin)).toFixed(2),
+                            ),
+                            offer.currency,
+                          )}/m`
+                          : `${formatPrice(offer.pricePerMeter, offer.currency)}/m`}
+                      </span>
+                      <span className="text-muted-foreground">Grade</span>
+                      <span>{offer.grade}</span>
+                      <span className="text-muted-foreground">Shape</span>
+                      <span>{offer.shape}</span>
+                      <span className="text-muted-foreground">
+                        Dimensions (mm)
+                      </span>
+                      <span>{formatDimensions(offer)}</span>
+                      <span className="text-muted-foreground">
+                        Thickness (mm)
+                      </span>
+                      <span>{offer.thickness}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
 
