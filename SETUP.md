@@ -1,131 +1,39 @@
 # Database setup
 
-Run these SQL blocks against your Postgres database (Neon SQL editor or `psql`) in order:
-the schema first, then create your user, then optionally seed a test order.
+The schema and sample data live as SQL under `scripts/db/`:
 
-> A fresh database needs only this file. The files in `migrations/` are historical deltas
-> (already folded in below) for upgrading existing databases.
+- `scripts/db/schema.sql` — tables, enum types, and the role rows (single source of truth)
+- `scripts/db/seed.sql` — a sample buyer and seller with inquiries and offers
 
-## Schema
+The `migrations/` files are historical deltas already folded into `schema.sql`; don't replay
+them on a fresh database.
 
-```sql
-CREATE TYPE shape AS ENUM (
-    'SQUARE',
-    'RECTANGULAR',
-    'ROUND'
-);
+## Fastest path
 
-CREATE TYPE grade AS ENUM (
-    'S235JR',
-    'DX51'
-);
-
--- "user" must exist before inquiry/offer/order, which reference it.
-CREATE TABLE "user" (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name TEXT,
-    email TEXT UNIQUE,
-    email_verified TIMESTAMPTZ,
-    image TEXT
-);
-
-CREATE TABLE inquiry (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    bars_requested INT NOT NULL,
-    latest_delivery_date DATE,
-    grade grade NOT NULL,
-    shape shape NOT NULL,
-    width DECIMAL(8,2) NOT NULL,
-    height DECIMAL(8,2) NOT NULL,
-    thickness DECIMAL(6,2) NOT NULL,
-    notes TEXT,
-    user_id UUID NOT NULL REFERENCES "user"(id)
-);
-
-CREATE TABLE offer (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    bars_available INT NOT NULL,
-    grade grade NOT NULL,
-    shape shape NOT NULL,
-    width DECIMAL(8,2) NOT NULL,
-    height DECIMAL(8,2) NOT NULL,
-    thickness DECIMAL(6,2) NOT NULL,
-    bars_per_bundle INT NOT NULL,
-    weight_per_meter DECIMAL(8,4) NOT NULL,
-    price_per_meter DECIMAL(10,4) NOT NULL,
-    currency CHAR(3) NOT NULL DEFAULT 'EUR',
-    notes TEXT,
-    user_id UUID NOT NULL REFERENCES "user"(id)
-);
-
-CREATE TABLE verification_token (
-    identifier TEXT,
-    token TEXT,
-    expires TIMESTAMPTZ,
-    PRIMARY KEY (identifier, token)
-);
-
-CREATE TABLE account (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID REFERENCES "user"(id),
-    type TEXT,
-    provider TEXT,
-    provider_account_id TEXT,
-    refresh_token TEXT,
-    access_token TEXT,
-    expires_at BIGINT,
-    token_type TEXT,
-    scope TEXT,
-    id_token TEXT,
-    session_state TEXT
-);
-
-CREATE TABLE role (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name TEXT UNIQUE NOT NULL
-);
-
-INSERT INTO role (name) VALUES ('buyer'), ('seller');
-
-CREATE TABLE user_role (
-    user_id UUID NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
-    role_id UUID NOT NULL REFERENCES role(id) ON DELETE CASCADE,
-    PRIMARY KEY (user_id, role_id)
-);
-
-CREATE TYPE order_status AS ENUM (
-    'MATCHED',
-    'APPROVED',
-    'PAID',
-    'DISPATCHED',
-    'DELIVERED',
-    'CANCELLED'
-);
-
--- "order" is a reserved word; always quote it.
-CREATE TABLE "order" (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    status order_status NOT NULL DEFAULT 'MATCHED',
-    inquiry_id UUID NOT NULL REFERENCES inquiry(id),
-    margin DECIMAL(6,4) NOT NULL DEFAULT 0,   -- broker markup, decimal fraction (0.10 = 10%)
-    notes TEXT,
-    user_id UUID NOT NULL REFERENCES "user"(id)   -- the broker who created the order
-);
-
-CREATE TABLE order_offer (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    order_id UUID NOT NULL REFERENCES "order"(id) ON DELETE CASCADE,
-    offer_id UUID NOT NULL REFERENCES offer(id),
-    UNIQUE (order_id, offer_id)
-);
-
-INSERT INTO role (name) VALUES ('broker');
+```bash
+pnpm db:setup     # runs schema.sql, then seed.sql, against POSTGRES_URL
 ```
 
-## Manual User Setup
-Since public signup is disabled, create a user manually and grant them both
-roles (`buyer` and `seller`) in one go. Change the email in the single place
-marked below, then run the whole block:
+Individual commands:
+
+| Command | Does |
+|---|---|
+| `pnpm db:bootstrap` | Create the schema (safe to re-run; existing objects are skipped) |
+| `pnpm db:seed` | Load sample inquiries/offers (skips if data already exists) |
+| `pnpm db:setup` | `db:bootstrap` then `db:seed` |
+| `pnpm db:reset` | **Destructive** — drop everything, then bootstrap + seed |
+
+> ⚠️ `db:reset` drops all tables, **including every user** — you'll need to recreate your
+> sign-in user (below) afterwards.
+
+## Manual path (no Node)
+
+Paste `scripts/db/schema.sql`, then `scripts/db/seed.sql`, into the Neon SQL editor (or `psql`).
+
+## Create your sign-in user
+
+Sign-in is invite-only, and the seeded sample users can't log in. Create yourself a user and
+grant all roles. Change the email, then run the whole block:
 
 ```sql
 WITH new_user AS (
@@ -140,25 +48,4 @@ FROM new_user, role
 ON CONFLICT (user_id, role_id) DO NOTHING;
 ```
 
-The block above grants the user every role, including `broker`.
-
-## Seed a test order
-
-Brokers can now create orders from the UI. You can still seed one manually to exercise the
-screen quickly. This links the first inquiry to the two cheapest offers with a 10% margin:
-
-```sql
-WITH new_order AS (
-    INSERT INTO "order" (status, inquiry_id, margin, user_id)
-    SELECT 'MATCHED', i.id, 0.10, u.id
-    FROM inquiry i
-    CROSS JOIN (SELECT id FROM "user" WHERE email = 'user@example.com') u
-    ORDER BY i.id
-    LIMIT 1
-    RETURNING id
-)
-INSERT INTO order_offer (order_id, offer_id)
-SELECT new_order.id, o.id
-FROM new_order, (SELECT id FROM offer ORDER BY price_per_meter LIMIT 2) o
-ON CONFLICT (order_id, offer_id) DO NOTHING;
-```
+This grants every role, including `broker`, so you see the full picture.

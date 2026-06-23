@@ -6,7 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:bootstrap": "node --env-file-if-exists=.env.local scripts/db/bootstrap.mjs",
+    "db:seed": "node --env-file-if-exists=.env.local scripts/db/seed.mjs",
+    "db:setup": "pnpm db:bootstrap && pnpm db:seed",
+    "db:reset": "node --env-file-if-exists=.env.local scripts/db/reset.mjs && pnpm db:setup"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",

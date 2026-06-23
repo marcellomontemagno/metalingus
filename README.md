@@ -41,17 +41,20 @@ Fill in the values in `.env.local` (see `.env.example` for what each does):
 
 ### 3. Bootstrap the database
 
-Run the schema SQL in [`SETUP.md`](./SETUP.md) against your database (Neon SQL editor or `psql`).
-It creates every table and enum and seeds the `buyer`, `seller`, and `broker` roles.
+```bash
+pnpm db:setup     # creates the schema, then loads sample inquiries/offers
+```
 
-> A fresh database needs **only** `SETUP.md`. The files in `migrations/` are historical deltas
-> (already folded into `SETUP.md`) for upgrading existing databases — don't replay them on a new DB.
+This runs `scripts/db/schema.sql` and `scripts/db/seed.sql` against `POSTGRES_URL`. Also available:
+`pnpm db:bootstrap` (schema only), `pnpm db:seed` (sample data only), `pnpm db:reset` (drop and
+rebuild — destructive). No-Node alternative: paste those two files into the Neon SQL editor. See
+[`SETUP.md`](./SETUP.md) for details.
 
-### 4. Create your user
+### 4. Create your sign-in user
 
-Sign-in is **invite-only** — there is no public signup, so an email with no `user` row cannot log in.
-Run the **Manual User Setup** block in `SETUP.md` (change the email first) to create yourself a user
-with all three roles.
+Sign-in is **invite-only**, and the seeded sample users can't log in. Add yourself a user with the
+**Create your sign-in user** block in [`SETUP.md`](./SETUP.md) (change the email first) — it grants
+all three roles, so you'll see everything.
 
 ### 5. Run
 
