@@ -1,3 +1,14 @@
+# Database setup
+
+Run these SQL blocks against your Postgres database (Neon SQL editor or `psql`) in order:
+the schema first, then create your user, then optionally seed a test order.
+
+> A fresh database needs only this file. The files in `migrations/` are historical deltas
+> (already folded in below) for upgrading existing databases.
+
+## Schema
+
+```sql
 CREATE TYPE shape AS ENUM (
     'SQUARE',
     'RECTANGULAR',
@@ -108,8 +119,9 @@ CREATE TABLE order_offer (
 );
 
 INSERT INTO role (name) VALUES ('broker');
+```
 
-### Manual User Setup
+## Manual User Setup
 Since public signup is disabled, create a user manually and grant them both
 roles (`buyer` and `seller`) in one go. Change the email in the single place
 marked below, then run the whole block:
@@ -129,7 +141,7 @@ ON CONFLICT (user_id, role_id) DO NOTHING;
 
 The block above grants the user every role, including `broker`.
 
-### Seed a test order
+## Seed a test order
 
 Brokers can now create orders from the UI. You can still seed one manually to exercise the
 screen quickly. This links the first inquiry to the two cheapest offers with a 10% margin:
