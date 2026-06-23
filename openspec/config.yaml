@@ -1,20 +1,51 @@
 schema: spec-driven
 
-# Project context (optional)
-# This is shown to AI when creating artifacts.
-# Add your tech stack, conventions, style guides, domain knowledge, etc.
-# Example:
-#   context: |
-#     Tech stack: TypeScript, React, Node.js
-#     We use conventional commits
-#     Domain: e-commerce platform
+# Shown to AI when creating artifacts (proposals, specs, designs, tasks).
+context: |
+  ## Product
+  metalingus is a broker-mediated B2B marketplace for steel bars. Buyers post
+  inquiries (what they need), sellers post offers (what they have in stock), and
+  brokers create orders that match one inquiry to one or more offers, adding a
+  margin (markup). The broker's margin is the business model and must never be
+  visible to buyers or sellers.
 
-# Per-artifact rules (optional)
-# Add custom rules for specific artifacts.
-# Example:
-#   rules:
-#     proposal:
-#       - Keep proposals under 500 words
-#       - Always include a "Non-goals" section
-#     tasks:
-#       - Break tasks into chunks of max 2 hours
+  ## Domain glossary
+  - Inquiry: a buyer's request for bars (quantity + grade + shape + dimensions + optional delivery date).
+  - Offer: a seller's available stock (quantity + grade + shape + dimensions + price/weight per meter + currency).
+  - Order: a broker's match of one inquiry to N offers, carrying a margin and a status.
+  - order_offer: join row linking an order to one of its offers.
+  - Margin: broker markup as a decimal fraction (0.10 = 10%) applied to seller prices.
+  - Grade: steel grade enum (S235JR, DX51). Shape: SQUARE | RECTANGULAR | ROUND.
+  - Roles: buyer, seller, broker. Roles are ADDITIVE — one user may hold several.
+
+  ## Tech stack
+  - Next.js 16 (App Router, route group "(app)"), React 19.
+  - Auth: next-auth v5 (Resend email magic-link, JWT sessions), invite-only.
+  - DB: Neon serverless Postgres. NO ORM — raw SQL template literals with
+    hand-rolled insertClause / setClause / parseRow(s) helpers in lib/db.
+  - State: Zustand + immer; a normalized entity store keyed by id; optimistic updates.
+  - Validation: Zod v4. Model files in lib/model/** ARE the zod schemas (source of truth).
+  - UI: shadcn/ui + Radix + Base UI, Tailwind v4, sonner toasts.
+
+  ## Conventions
+  - App uses camelCase; DB uses snake_case. parseRow/parseRows bridge them.
+  - API route handlers return store-shaped payloads, e.g. { inquiry: [...], order: [...] },
+    that merge directly into the Zustand store via mergeEntities.
+  - Auth context is resolved server-side via getAuthContext() -> { user, roles }.
+  - Access control lives in the route handlers: role checks, ownership checks,
+    and per-role visibility filtering (there is no middleware-level RBAC).
+
+  ## Invariants enforced today
+  - Margin privacy: a buyer/seller never receives the raw seller price or the margin;
+    buyers see only the marked-up price (price_per_meter * (1 + margin)); sanitizeOrder nulls margin.
+  - Order immutability: an inquiry or offer linked to any order cannot be edited or deleted.
+  - Ownership: a user may only create or modify their own inquiries/offers.
+  - Status lock: an order's offers/inquiry/margin/notes are frozen once status leaves MATCHED.
+
+# Per-artifact rules applied when generating each artifact.
+rules:
+  proposal:
+    - State scope precisely and call out non-goals when the boundary is subtle.
+  specs:
+    - Phrase requirements as "The system SHALL ..."; every requirement needs at least one scenario.
+    - Reference the shared invariants (margin privacy, order immutability, ownership) rather than restating them.
