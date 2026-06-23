@@ -20,6 +20,15 @@ CREATE TYPE grade AS ENUM (
     'DX51'
 );
 
+-- "user" must exist before inquiry/offer/order, which reference it.
+CREATE TABLE "user" (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT,
+    email TEXT UNIQUE,
+    email_verified TIMESTAMPTZ,
+    image TEXT
+);
+
 CREATE TABLE inquiry (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     bars_requested INT NOT NULL,
@@ -47,14 +56,6 @@ CREATE TABLE offer (
     currency CHAR(3) NOT NULL DEFAULT 'EUR',
     notes TEXT,
     user_id UUID NOT NULL REFERENCES "user"(id)
-);
-
-CREATE TABLE "user" (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name TEXT,
-    email TEXT UNIQUE,
-    email_verified TIMESTAMPTZ,
-    image TEXT
 );
 
 CREATE TABLE verification_token (

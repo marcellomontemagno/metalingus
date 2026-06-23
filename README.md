@@ -32,11 +32,12 @@ pnpm install
 cp .env.example .env.local
 ```
 
-Fill in the three values in `.env.local` (see `.env.example` for what each does):
+Fill in the values in `.env.local` (see `.env.example` for what each does):
 
 - `AUTH_SECRET` — any random 32+ byte string: `openssl rand -base64 33` (or `node -e "console.log(crypto.randomBytes(33).toString('base64'))"`). Note: don't use `npx auth secret` — the `auth` package on npm is an unrelated CLI (Better Auth).
 - `POSTGRES_URL` — your Neon connection string
 - `AUTH_RESEND_KEY` — your Resend API key
+- `AUTH_EMAIL_FROM` — *(optional)* magic-link sender; the template defaults it to `onboarding@resend.dev` for local dev. Falls back to `auth@keepalink.com` when unset.
 
 ### 3. Bootstrap the database
 
@@ -61,9 +62,10 @@ pnpm dev
 Open <http://localhost:3000> and sign in at `/auth/signin` with the email you inserted. The magic
 link is delivered via Resend.
 
-> **Heads-up:** `auth.ts` sends from `auth@keepalink.com`. That sender must be a **verified domain in
-> your Resend account** or the email silently won't send — change `from` to your own verified sender
-> for local development.
+> **Heads-up:** magic-link emails are sent from `AUTH_EMAIL_FROM` — the `.env.example` defaults it to
+> `onboarding@resend.dev`, Resend's no-setup test sender, which needs no domain verification but only
+> delivers to your own Resend account email. The fallback `auth@keepalink.com` must be a domain
+> verified in your Resend account.
 
 ## Scripts
 

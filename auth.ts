@@ -7,7 +7,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
     Resend({
       apiKey: process.env.AUTH_RESEND_KEY,
-      from: "auth@keepalink.com",
+      // Magic-link sender. Defaults to the production domain; set AUTH_EMAIL_FROM
+      // (e.g. onboarding@resend.dev, Resend's no-setup test sender) for local dev.
+      from: process.env.AUTH_EMAIL_FROM ?? "auth@keepalink.com",
     }),
   ],
   session: {
