@@ -3,13 +3,13 @@ import { magicLink, organization } from "better-auth/plugins";
 import { Pool, neonConfig } from "@neondatabase/serverless";
 import ws from "ws";
 import { Resend } from "resend";
+import { sql } from "@/lib/db/db";
 
 // Neon's Pool speaks WebSocket; give it a constructor in Node (local + Vercel).
 neonConfig.webSocketConstructor = ws;
 
 const resend = new Resend(process.env.AUTH_RESEND_KEY);
 const from = process.env.AUTH_EMAIL_FROM ?? "auth@keepalink.com";
-const appUrl = process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
 
 export const auth = betterAuth({
   // Same Neon database the app already uses — via the WebSocket Pool, not the
@@ -28,13 +28,35 @@ export const auth = betterAuth({
     magicLink({
       // Invite-only: never auto-provision an unknown email.
       disableSignUp: true,
-      // One sender for every magic link, framed by the callbackURL. Operator/
-      // business provisioning sends a one-click welcome (callbackURL `/?welcome`).
+      // Single sender for every magic link. Sign-in, org invites, and
+      // operator/business provisioning all flow through here as one-click links;
+      // we frame the message from the callbackURL embedded in the link.
       sendMagicLink: async ({ email, url }) => {
         let subject = "Your metalingus sign-in link";
         let intro = "Sign in to metalingus:";
         try {
-          if ((new URL(url).searchParams.get("callbackURL") ?? "").includes("welcome")) {
+          const cb = new URL(url).searchParams.get("callbackURL") ?? "";
+          if (cb.startsWith("/accept-invite")) {
+            subject = "You've been invited to a Business on metalingus";
+            intro =
+              "You've been invited to join a Business on metalingus. Click to sign in and accept:";
+            // Enrich with the org + inviter, looked up from the invitation id.
+            const id = new URL(cb, "http://localhost").searchParams.get("id");
+            if (id) {
+              const rows = await sql`
+                SELECT o.name AS org, COALESCE(u.name, u.email) AS inviter
+                FROM invitation i
+                JOIN organization o ON o.id = i."organizationId"
+                LEFT JOIN "user" u ON u.id = i."inviterId"
+                WHERE i.id = ${id}`;
+              if (rows[0]) {
+                const org = rows[0].org as string;
+                const inviter = (rows[0].inviter as string) ?? "Someone";
+                subject = `You've been invited to join ${org} on metalingus`;
+                intro = `${inviter} invited you to join ${org}. Click to sign in and accept:`;
+              }
+            }
+          } else if (cb.includes("welcome")) {
             subject = "You've been added to metalingus";
             intro = "An account was created for you on metalingus. Click to sign in:";
           }
@@ -47,24 +69,12 @@ export const auth = betterAuth({
         });
       },
     }),
-    // `kind` (buyer/seller/both) is the org's business type. sendInvitationEmail
-    // delivers org invites (the Members UI + `/accept-invite`).
+    // `kind` (buyer/seller/both) is the org's business type. No sendInvitationEmail —
+    // invites are delivered as one-click magic links from the invite action
+    // (callbackURL -> /accept-invite?id=...), framed by sendMagicLink above.
     organization({
       schema: {
         organization: { additionalFields: { kind: { type: "string", required: false } } },
-      },
-      sendInvitationEmail: async ({ email, organization, inviter, invitation }) => {
-        const url = `${appUrl}/accept-invite?id=${invitation.id}`;
-        try {
-          await resend.emails.send({
-            from,
-            to: email,
-            subject: `Join ${organization.name} on metalingus`,
-            html: `<p>${inviter.user.name ?? inviter.user.email} invited you to join <strong>${organization.name}</strong>.</p><p><a href="${url}">Accept invitation</a></p>`,
-          });
-        } catch (e) {
-          console.error("invitation email failed:", e);
-        }
       },
     }),
   ],

@@ -26,10 +26,27 @@ async function currentMembership(userId: string) {
   return rows[0] as { id: string; name: string; role: string } | undefined;
 }
 
+// Guard for the management actions — owner/admin of their current Business only.
+async function assertManager(userId: string) {
+  const acting = await currentMembership(userId);
+  if (!acting || (acting.role !== "owner" && acting.role !== "admin")) {
+    throw new Error("Forbidden");
+  }
+  return acting;
+}
+
+const SELECT_CLASS =
+  "border-input dark:bg-input/30 h-8 rounded-md border bg-transparent px-2 text-xs";
+
 export default async function MembersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ invited?: string; error?: string }>;
+  searchParams: Promise<{
+    invited?: string;
+    updated?: string;
+    removed?: string;
+    error?: string;
+  }>;
 }) {
   const sp = await searchParams;
   const { user } = await getAuthContext();
@@ -53,7 +70,8 @@ export default async function MembersPage({
   const canManage = org.role === "owner" || org.role === "admin";
 
   const members = await sql`
-    SELECT u.email, u.name, m.role FROM member m JOIN "user" u ON u.id = m."userId"
+    SELECT u.email, u.name, m.role, m.id AS member_id, m."userId"
+    FROM member m JOIN "user" u ON u.id = m."userId"
     WHERE m."organizationId" = ${org.id} ORDER BY (m.role = 'owner') DESC, u.email`;
   const invites = await sql`
     SELECT email, role, "expiresAt" FROM invitation
@@ -62,10 +80,7 @@ export default async function MembersPage({
   async function invite(formData: FormData) {
     "use server";
     const { user } = await getAuthContext();
-    const acting = await currentMembership(user.id);
-    if (!acting || (acting.role !== "owner" && acting.role !== "admin")) {
-      throw new Error("Forbidden");
-    }
+    const acting = await assertManager(user.id);
     const email = String(formData.get("email") ?? "").trim();
     const role = String(formData.get("role") ?? "member");
     if (!email) redirect("/members?error=" + encodeURIComponent("Email is required"));
@@ -74,6 +89,20 @@ export default async function MembersPage({
         body: { email, role: role as "member" | "admin", organizationId: acting.id },
         headers: await headers(),
       });
+      // Deliver the invite as a one-click magic link that signs the invitee in
+      // and lands them on the accept page (sendInvitationEmail is intentionally
+      // not configured). Best-effort: a not-yet-allowlisted email can't sign in.
+      const inv = await sql`
+        SELECT id FROM invitation WHERE "organizationId" = ${acting.id}
+        AND email = ${email} AND status = 'pending' ORDER BY "createdAt" DESC LIMIT 1`;
+      if (inv[0]?.id) {
+        await auth.api
+          .signInMagicLink({
+            body: { email, callbackURL: `/accept-invite?id=${inv[0].id}` },
+            headers: await headers(),
+          })
+          .catch(() => {});
+      }
     } catch (e) {
       redirect("/members?error=" + encodeURIComponent(e instanceof Error ? e.message : "Invite failed"));
     }
@@ -81,11 +110,52 @@ export default async function MembersPage({
     redirect("/members?invited=" + encodeURIComponent(email));
   }
 
+  async function changeRole(formData: FormData) {
+    "use server";
+    const { user } = await getAuthContext();
+    const acting = await assertManager(user.id);
+    const memberId = String(formData.get("memberId") ?? "");
+    const role = String(formData.get("role") ?? "");
+    if (!memberId || !["member", "admin", "owner"].includes(role)) {
+      redirect("/members?error=" + encodeURIComponent("Invalid role change"));
+    }
+    try {
+      await auth.api.updateMemberRole({
+        body: { memberId, role: role as "member" | "admin" | "owner", organizationId: acting.id },
+        headers: await headers(),
+      });
+    } catch (e) {
+      redirect("/members?error=" + encodeURIComponent(e instanceof Error ? e.message : "Couldn't change role"));
+    }
+    revalidatePath("/members");
+    redirect("/members?updated=1");
+  }
+
+  async function removeMember(formData: FormData) {
+    "use server";
+    const { user } = await getAuthContext();
+    const acting = await assertManager(user.id);
+    const memberId = String(formData.get("memberId") ?? "");
+    if (!memberId) redirect("/members?error=" + encodeURIComponent("No member specified"));
+    try {
+      await auth.api.removeMember({
+        body: { memberIdOrEmail: memberId, organizationId: acting.id },
+        headers: await headers(),
+      });
+    } catch (e) {
+      redirect("/members?error=" + encodeURIComponent(e instanceof Error ? e.message : "Couldn't remove member"));
+    }
+    revalidatePath("/members");
+    redirect("/members?removed=1");
+  }
+
   return (
     <main className="space-y-6 p-6">
-      {(sp.invited || sp.error) && (
+      {(sp.invited || sp.updated || sp.removed || sp.error) && (
         <div className="text-sm">
           {sp.invited && <p className="text-green-600">Invitation sent to {sp.invited}.</p>}
+          {sp.updated && <p className="text-green-600">Member role updated.</p>}
+          {sp.removed && <p className="text-green-600">Member removed.</p>}
           {sp.error && <p className="text-destructive">{sp.error}</p>}
         </div>
       )}
@@ -101,11 +171,12 @@ export default async function MembersPage({
                 <TableHead>Email</TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Role</TableHead>
+                {canManage && <TableHead className="text-right">Manage</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
               {members.map((m) => (
-                <TableRow key={m.email}>
+                <TableRow key={m.member_id}>
                   <TableCell data-label="Email">{m.email}</TableCell>
                   <TableCell data-label="Name" className="text-muted-foreground">
                     {m.name ?? "—"}
@@ -113,6 +184,33 @@ export default async function MembersPage({
                   <TableCell data-label="Role">
                     <Badge variant={m.role === "owner" ? "default" : "secondary"}>{m.role}</Badge>
                   </TableCell>
+                  {canManage && (
+                    <TableCell data-label="Manage" className="text-right">
+                      {m.userId === user.id ? (
+                        <span className="text-xs text-muted-foreground">you</span>
+                      ) : (
+                        <div className="flex items-center justify-end gap-2">
+                          <form action={changeRole} className="flex items-center gap-1">
+                            <input type="hidden" name="memberId" value={m.member_id} />
+                            <select name="role" defaultValue={m.role} className={SELECT_CLASS}>
+                              <option value="member">member</option>
+                              <option value="admin">admin</option>
+                              <option value="owner">owner</option>
+                            </select>
+                            <Button type="submit" size="sm" variant="outline">
+                              Update
+                            </Button>
+                          </form>
+                          <form action={removeMember}>
+                            <input type="hidden" name="memberId" value={m.member_id} />
+                            <Button type="submit" size="sm" variant="destructive">
+                              Remove
+                            </Button>
+                          </form>
+                        </div>
+                      )}
+                    </TableCell>
+                  )}
                 </TableRow>
               ))}
             </TableBody>
