@@ -1,8 +1,8 @@
-import { auth } from "@/auth";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { getSessionCookie } from "better-auth/cookies";
 
-// Everything is protected by default. Only these prefixes are public; the
-// NextAuth endpoints (`/api/auth/*`) are already excluded by the matcher below.
+// Everything is protected by default. Only these prefixes are public; the Better
+// Auth endpoints (`/api/auth/*`) are already excluded by the matcher below.
 const PUBLIC_PATHS = ["/auth"];
 
 function isPublic(pathname: string) {
@@ -12,9 +12,11 @@ function isPublic(pathname: string) {
   );
 }
 
-export default auth((req) => {
+// Optimistic check: presence of the Better Auth session cookie. Full validation
+// happens server-side in getAuthContext(); this only gates routing.
+export default function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
-  const isLoggedIn = !!req.auth;
+  const isLoggedIn = !!getSessionCookie(req);
 
   if (isLoggedIn || isPublic(pathname)) {
     return NextResponse.next();
@@ -27,10 +29,10 @@ export default auth((req) => {
 
   // Pages: redirect to sign-in.
   return NextResponse.redirect(new URL("/auth/signin", req.nextUrl.origin));
-});
+}
 
 export const config = {
   // Includes `/api` so it sits behind the auth filter, but still excludes the
-  // NextAuth endpoints (`/api/auth/*`) so sign-in/callbacks work unauthenticated.
+  // Better Auth endpoints (`/api/auth/*`) so sign-in/callbacks work unauthenticated.
   matcher: ["/((?!api/auth|_next/static|_next/image|favicon.ico).*)"],
 };

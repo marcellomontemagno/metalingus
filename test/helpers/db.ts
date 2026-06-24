@@ -1,17 +1,24 @@
 // In-process Postgres (pglite) wearing the @neondatabase/serverless interface, so
-// the real route handlers run unmodified against it. The app uses three shapes:
-//   sql`... ${v} ...`            -> Promise<rows[]>
-//   sql.query(text, params)      -> Promise<rows[]>   (also collectible into a tx)
-//   sql.transaction([q, q, ...]) -> Promise<rows[][]>
+// the real route handlers run unmodified against it. Better Auth owns the `user`
+// table in production; the harness creates a compatible one before the app schema.
 import { readFileSync } from "node:fs";
 import { PGlite } from "@electric-sql/pglite";
 import { asUser } from "./ctx";
 
 const pg = new PGlite(); // in-memory; one per test process
-await pg.exec(readFileSync("scripts/db/schema.sql", "utf8")); // single source of truth
 
-// A thenable that runs lazily on await, and carries text/params so it can be
-// replayed inside a transaction (mirroring neon's NeonQueryPromise).
+// Better Auth's user table (the columns the app FKs to / queries).
+await pg.exec(`CREATE TABLE "user" (
+  id TEXT PRIMARY KEY,
+  name TEXT,
+  email TEXT UNIQUE,
+  "emailVerified" BOOLEAN NOT NULL DEFAULT false,
+  image TEXT,
+  "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
+  "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+);`);
+await pg.exec(readFileSync("scripts/db/schema.sql", "utf8")); // app tables (FK to user)
+
 function makeQuery(text: string, params: unknown[]) {
   const run = () => pg.query(text, params).then((r) => r.rows);
   return {
@@ -43,13 +50,14 @@ export const sql: any = Object.assign(
 // Clear all data between tests; keep the seeded role rows.
 export async function reset() {
   await pg.exec(
-    `TRUNCATE order_offer, "order", user_role, account, verification_token, offer, inquiry, "user" RESTART IDENTITY CASCADE;`,
+    `TRUNCATE order_offer, "order", user_role, offer, inquiry, "user" RESTART IDENTITY CASCADE;`,
   );
 }
 
+// Create a Better Auth-shaped user with the given roles; returns the (text) id.
 export async function makeUser(email: string, roles: string[] = []): Promise<string> {
-  const rows = await sql`INSERT INTO "user" (email) VALUES (${email}) RETURNING id`;
-  const id = rows[0].id as string;
+  const id = crypto.randomUUID();
+  await sql`INSERT INTO "user" (id, name, email, "emailVerified") VALUES (${id}, ${email}, ${email}, true)`;
   for (const r of roles)
     await sql`INSERT INTO user_role (user_id, role_id) SELECT ${id}, id FROM role WHERE name = ${r}`;
   return id;

@@ -1,4 +1,5 @@
-import { auth } from "@/auth";
+import { headers } from "next/headers";
+import { auth } from "@/lib/auth";
 import { sql } from "@/lib/db/db";
 import parseRow from "@/lib/db/parseRow";
 import parseRows from "@/lib/db/parseRows";
@@ -7,7 +8,7 @@ import { roleSchema } from "@/lib/model/role/Role";
 import type AuthContext from "./AuthContext";
 
 export default async function getAuthContext(): Promise<AuthContext> {
-  const session = await auth();
+  const session = await auth.api.getSession({ headers: await headers() });
   const email = session?.user?.email;
   const userRows = await sql`SELECT * FROM "user" WHERE email = ${email}`;
   const user = parseRow(userSchema, userRows[0]);

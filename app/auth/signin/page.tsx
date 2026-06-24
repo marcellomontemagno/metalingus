@@ -1,4 +1,6 @@
-import { signIn } from "@/auth";
+import { auth } from "@/lib/auth";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 
 export default async function SignInPage({
   searchParams: searchParamsPromise,
@@ -15,12 +17,17 @@ export default async function SignInPage({
       <form
         action={async (formData) => {
           "use server";
-          const searchParams = await searchParamsPromise;
+          const sp = await searchParamsPromise;
           const email = formData.get("email") as string;
-          await signIn("resend", { 
-            email, 
-            redirectTo: searchParams.callbackUrl || "/"
-          });
+          try {
+            await auth.api.signInMagicLink({
+              body: { email, callbackURL: sp.callbackUrl || "/" },
+              headers: await headers(),
+            });
+          } catch {
+            // Swallow: don't reveal whether the email is invited (invite-only).
+          }
+          redirect("/auth/verify");
         }}
       >
         <input

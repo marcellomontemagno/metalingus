@@ -17,8 +17,8 @@ export const auth = betterAuth({
   // Reuse the existing secret in dev; set BETTER_AUTH_SECRET/URL in production.
   secret: process.env.BETTER_AUTH_SECRET ?? process.env.AUTH_SECRET,
   baseURL: process.env.BETTER_AUTH_URL ?? "http://localhost:3000",
-  // Staged path while next-auth still owns /api/auth; moves to /api/auth at the swap.
-  basePath: "/api/better-auth",
+  // UUID ids keep the app's z.uuid() validations and the text user_id FKs aligned.
+  advanced: { database: { generateId: () => crypto.randomUUID() } },
   plugins: [
     magicLink({
       // Invite-only: never auto-provision an unknown email.

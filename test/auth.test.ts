@@ -2,7 +2,6 @@ import { test, expect, describe, beforeEach } from "bun:test";
 import { reset, makeUser } from "./helpers/db";
 import { asUser } from "./helpers/ctx";
 import getAuthContext from "@/lib/auth/getAuthContext";
-import { CustomSqlAdapter } from "@/lib/auth-adapter";
 
 beforeEach(reset);
 
@@ -15,8 +14,7 @@ describe("authentication", () => {
     expect(ctx.roles.map((r) => r.name).sort()).toEqual(["buyer", "seller"]);
   });
 
-  test("invite-only: the auth adapter does not expose createUser", () => {
-    // createUser is intentionally omitted so unknown emails can't self-provision.
-    expect(CustomSqlAdapter().createUser).toBeUndefined();
-  });
+  // Invite-only is now enforced by the Better Auth magicLink `disableSignUp: true`
+  // option in lib/auth.ts (no auto-provisioning of unknown emails) rather than a
+  // custom adapter that omits createUser.
 });

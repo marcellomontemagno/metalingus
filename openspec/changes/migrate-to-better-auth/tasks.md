@@ -7,14 +7,14 @@
 ## 2. Phase 1 — Provider swap (like-for-like)
 
 - [x] 2.1 Add `better-auth`; configure `lib/auth.ts` (magicLink via Resend, DB sessions, secret/url) — **constructs, typechecks, magic-link endpoint present** (admin plugin deferred to Phase 3 per decision #2)
-- [ ] 2.2 Mount the Better Auth route handler; remove the next-auth `[...nextauth]` mount — **handler staged at `/api/better-auth`; moves to `/api/auth` + next-auth removed at the swap**
+- [x] 2.2 Better Auth handler at `/api/auth/[...all]`; next-auth `[...nextauth]` mount removed
 - [x] 2.3 Ran `@better-auth/cli migrate` (user/session/account/verification); app `schema.sql` now creates only app tables + FKs to Better Auth's text `user(id)`
-- [ ] 2.4 Re-implement `getAuthContext()` on Better Auth, preserving the existing `{ user, roles }` contract (temporary role mapping)
-- [ ] 2.5 Update `middleware.ts` to the Better Auth session/cookie check (401 for `/api`, redirect for pages)
-- [ ] 2.6 Port sign-in (magic link), sign-out, and `AppShell` flows
-- [ ] 2.7 Enforce invite-only: disable open sign-up, reject unknown emails
-- [ ] 2.8 Update the test harness to mock the Better Auth seam; keep the pglite suite green
-- [ ] 2.9 Remove `next-auth` and `lib/auth-adapter.ts`
+- [x] 2.4 Re-implemented `getAuthContext()` on Better Auth (`auth.api.getSession`), preserving the `{ user, roles }` contract via the temporary role mapping
+- [x] 2.5 `middleware.ts` uses `getSessionCookie` (401 for `/api`, redirect for pages)
+- [x] 2.6 Ported sign-in (magic link), sign-out, `AppShell`, and the home page to Better Auth
+- [x] 2.7 Invite-only via `disableSignUp: true` (no auto-provisioning of unknown emails)
+- [x] 2.8 Test harness mocks the Better Auth seam (`@/lib/auth` + `next/headers`); **28 tests pass**
+- [x] 2.9 Removed `auth.ts`, `lib/auth-adapter.ts`, and uninstalled `next-auth`
 
 ## 3. Phase 2 — Organizations
 

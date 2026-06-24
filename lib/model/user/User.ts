@@ -4,8 +4,8 @@ export const userSchema = z.object({
   id: z.string(),
   name: z.string().nullable(),
   email: z.string().nullable(),
-  // email_verified is a timestamptz; neon may hand it back as a string or Date.
-  emailVerified: z.coerce.date().nullable(),
+  // Better Auth stores emailVerified as a boolean.
+  emailVerified: z.coerce.boolean().nullable(),
   image: z.string().nullable(),
 });
 

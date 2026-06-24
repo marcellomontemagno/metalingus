@@ -1,4 +1,6 @@
-import { signOut } from "@/auth";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
+import { auth } from "@/lib/auth";
 import getAuthContext from "@/lib/auth/getAuthContext";
 import AppSidebar from "@/components/AppSidebar";
 import SetAuthContext from "@/components/SetAuthContext";
@@ -26,7 +28,8 @@ export default async function AppShell({
 
   async function signOutAction() {
     "use server";
-    await signOut({ redirectTo: "/" });
+    await auth.api.signOut({ headers: await headers() });
+    redirect("/");
   }
 
   return (
