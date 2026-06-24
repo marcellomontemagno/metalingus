@@ -19,6 +19,10 @@ export const auth = betterAuth({
   baseURL: process.env.BETTER_AUTH_URL ?? "http://localhost:3000",
   // UUID ids keep the app's z.uuid() validations and the text user_id FKs aligned.
   advanced: { database: { generateId: () => crypto.randomUUID() } },
+  // Platform role lives on the user: `operator` = broker/platform (sees-all),
+  // outside the org model. Lighter than the admin plugin (which we'd only add for
+  // impersonate/ban/admin API).
+  user: { additionalFields: { platformRole: { type: "string", required: false } } },
   plugins: [
     magicLink({
       // Invite-only: never auto-provision an unknown email.

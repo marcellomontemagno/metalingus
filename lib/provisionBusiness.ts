@@ -52,6 +52,7 @@ export async function provisionOperator(opts: {
 }): Promise<{ userId: string }> {
   const { email, contactName } = opts;
   const userId = await createOrFindUser(email, contactName);
-  await grantRole(userId, "broker");
+  await sql`UPDATE "user" SET "platformRole" = 'operator' WHERE id = ${userId}`;
+  await grantRole(userId, "broker"); // additive: route handlers still read this until Step 4
   return { userId };
 }
