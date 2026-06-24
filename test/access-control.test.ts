@@ -23,10 +23,12 @@ describe("access-control: roles", () => {
 });
 
 describe("access-control: ownership", () => {
-  test("a user cannot create an entity owned by someone else", async () => {
-    await login("buyer@t", ["buyer"]);
+  test("a forged userId on create is ignored — the entity is owned by the caller", async () => {
+    const me = await login("buyer@t", ["buyer"]);
     const res = await createInquiry(req("POST", anInquiry({ userId: crypto.randomUUID() })));
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(201);
+    // server stamps ownership from the session/org, never the submitted userId.
+    expect((await res.json()).inquiry[0].userId).toBe(me);
   });
 });
 
