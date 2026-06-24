@@ -6,8 +6,8 @@
 
 ## 2. Phase 1 — Provider swap (like-for-like)
 
-- [ ] 2.1 Add `better-auth`; configure `auth.ts` (magicLink via Resend, DB sessions, `BETTER_AUTH_SECRET`/`BETTER_AUTH_URL`)
-- [ ] 2.2 Mount the Better Auth route handler; remove the next-auth `[...nextauth]` mount
+- [x] 2.1 Add `better-auth`; configure `lib/auth.ts` (magicLink via Resend, DB sessions, secret/url) — **constructs, typechecks, magic-link endpoint present** (admin plugin deferred to Phase 3 per decision #2)
+- [ ] 2.2 Mount the Better Auth route handler; remove the next-auth `[...nextauth]` mount — **handler staged at `/api/better-auth`; moves to `/api/auth` + next-auth removed at the swap**
 - [ ] 2.3 Run `@better-auth/cli migrate`; fold the Better Auth tables into the schema source
 - [ ] 2.4 Re-implement `getAuthContext()` on Better Auth, preserving the existing `{ user, roles }` contract (temporary role mapping)
 - [ ] 2.5 Update `middleware.ts` to the Better Auth session/cookie check (401 for `/api`, redirect for pages)
