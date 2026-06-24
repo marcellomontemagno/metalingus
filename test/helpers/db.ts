@@ -15,7 +15,8 @@ await pg.exec(`CREATE TABLE "user" (
   "emailVerified" BOOLEAN NOT NULL DEFAULT false,
   image TEXT,
   "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
-  "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+  "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
+  "platformRole" TEXT
 );`);
 // Better Auth's organization table (the app FKs `organization_id` to it).
 await pg.exec(`CREATE TABLE organization (
