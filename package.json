@@ -12,7 +12,7 @@
     "db:seed-orgs": "bun scripts/db/seed-orgs.mjs",
     "provision-business": "bun scripts/provision-business.mjs",
     "db:auth-migrate": "bunx @better-auth/cli@latest migrate --config lib/auth.ts --yes",
-    "db:setup": "pnpm db:auth-migrate && pnpm db:bootstrap && pnpm db:seed",
+    "db:setup": "pnpm db:auth-migrate && pnpm db:bootstrap && pnpm db:seed && pnpm db:seed-orgs",
     "db:reset": "node --env-file-if-exists=.env.local scripts/db/reset.mjs && pnpm db:setup",
     "test": "bun test"
   },

@@ -27,8 +27,8 @@
 
 ## 4. Phase 3 — Re-home the domain
 
-- [ ] 4.1 Add `organization_id` (+ `created_by`) to `inquiry`/`offer`/`order`; backfill from each owner's Business
-- [ ] 4.2 Add `kind` (buyer/seller/both) to `organization`; backfill from former roles
+- [x] 4.1 Added `organization_id` to `inquiry`/`offer`/`order` (nullable, additive); `seed-orgs` links each entity to its owner's Business. No backfill (greenfield reset); `created_by` folds into the Step-5 `user_id`→`created_by` rename
+- [x] 4.2 Added `kind` (buyer/seller/both) to `organization` via the plugin's `additionalFields`; `seed-orgs` derives it from the user's roles. No backfill
 - [ ] 4.3 Model `broker` as a platform role per the Phase 0 decision
 - [ ] 4.4 Switch route-handler visibility/ownership from `user_id` to `organization_id`; gate writes by business type + member role; keep broker-sees-all and margin privacy
 - [ ] 4.5 Evolve the `getAuthContext` / `useAuthContext` shape to `{ user, organization, member role, platform role }`
