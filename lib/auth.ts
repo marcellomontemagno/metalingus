@@ -43,8 +43,13 @@ export const auth = betterAuth({
       },
     }),
     // Invitation create/accept (the Members UI + `/accept-invite`) is parked on
-    // the members-management branch, so there's no sendInvitationEmail here yet —
-    // the invitation tables/API exist via the plugin, just no delivery.
-    organization(),
+    // the members-management branch — no sendInvitationEmail here yet. Phase 3:
+    // `kind` (buyer/seller/both) is the org's business type, which replaces the
+    // global buyer/seller roles.
+    organization({
+      schema: {
+        organization: { additionalFields: { kind: { type: "string", required: false } } },
+      },
+    }),
   ],
 });

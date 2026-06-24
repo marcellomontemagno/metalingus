@@ -17,7 +17,17 @@ await pg.exec(`CREATE TABLE "user" (
   "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
   "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now()
 );`);
-await pg.exec(readFileSync("scripts/db/schema.sql", "utf8")); // app tables (FK to user)
+// Better Auth's organization table (the app FKs `organization_id` to it).
+await pg.exec(`CREATE TABLE organization (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  slug TEXT,
+  logo TEXT,
+  "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
+  metadata TEXT,
+  kind TEXT
+);`);
+await pg.exec(readFileSync("scripts/db/schema.sql", "utf8")); // app tables (FK to user/org)
 
 function makeQuery(text: string, params: unknown[]) {
   const run = () => pg.query(text, params).then((r) => r.rows);
