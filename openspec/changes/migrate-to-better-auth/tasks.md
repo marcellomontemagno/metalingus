@@ -19,7 +19,7 @@
 ## 3. Phase 2 — Organizations
 
 - [x] 3.1 Added the `organization` plugin (server) + Resend `sendInvitationEmail`; ran migrate — **organization/member/invitation tables + `session.activeOrganizationId`** (client plugin lands with the switcher UI, 3.4)
-- [ ] 3.2 Provision a Business per existing user and set the creator as `owner` (backfill)
+- [x] 3.2 Provisioned a Business per user via `auth.api.createOrganization` (owner membership) — `db:seed-orgs` script; buyer@/seller@/g@esposi.to each own a Business
 - [ ] 3.3 Wire invitations via Resend (`sendInvitationEmail`) and the accept-invitation onboarding flow
 - [ ] 3.4 Active-organization selection + org switcher UI; surface the active org in `getAuthContext`
 - [ ] 3.5 Member management (invite / remove / change role) for `owner`/`admin`
