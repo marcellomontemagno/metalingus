@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import getAuthContext from "@/lib/auth/getAuthContext";
+import { sql } from "@/lib/db/db";
 import AppSidebar from "@/components/AppSidebar";
 import SetAuthContext from "@/components/SetAuthContext";
 import {
@@ -17,6 +18,15 @@ export default async function AppShell({
 }>) {
   const { user, roles } = await getAuthContext();
   const has = (name: string) => roles.some((r) => r.name === name);
+
+  // Current Business to surface in the sidebar (first membership for now; the
+  // deferred switcher will let multi-org users choose the active one).
+  const orgRows = await sql`
+    SELECT o.name, o.slug FROM member m JOIN organization o ON o.id = m."organizationId"
+    WHERE m."userId" = ${user.id} ORDER BY o.name LIMIT 1`;
+  const currentOrg = orgRows[0]
+    ? { name: orgRows[0].name as string, slug: orgRows[0].slug as string }
+    : null;
 
   const items = [
     ...(has("buyer") ? [{ href: "/inquiries", label: "Inquiries", icon: "inbox" }] : []),
@@ -36,7 +46,12 @@ export default async function AppShell({
   return (
     <SidebarProvider>
       <SetAuthContext userId={user.id} roles={roles.map((r) => r.name)}>
-        <AppSidebar items={items} userEmail={user.email} signOutAction={signOutAction} />
+        <AppSidebar
+          items={items}
+          userEmail={user.email}
+          currentOrg={currentOrg}
+          signOutAction={signOutAction}
+        />
         <SidebarInset>
           <header className="flex h-12 shrink-0 items-center gap-2 border-b px-4">
             <SidebarTrigger />
