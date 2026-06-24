@@ -1,6 +1,7 @@
 import { ZodError } from "zod";
 import { sql } from "@/lib/db/db";
 import getAuthContext from "@/lib/auth/getAuthContext";
+import { access } from "@/lib/auth/access";
 import { inquirySchema } from "@/lib/model/inquiry/Inquiry";
 import type Inquiry from "@/lib/model/inquiry/Inquiry";
 import { userSchema } from "@/lib/model/user/User";
@@ -11,31 +12,21 @@ import insertClause from "@/lib/db/insertClause";
 
 export async function GET() {
   const ctx = await getAuthContext();
-  const has = (name: string) => ctx.roles.some((r) => r.name === name);
-  const userId = ctx.user.id;
+  const { isOperator, orgId, isBuyer } = access(ctx);
   let rows: Record<string, unknown>[] = [];
-  if (has("broker")) {
-    rows = await sql`
-      SELECT * FROM inquiry
-    `;
-  } else if (has("buyer")) {
-    rows = await sql`
-      SELECT * FROM inquiry WHERE user_id = ${userId}
-    `;
+  if (isOperator) {
+    rows = await sql`SELECT * FROM inquiry`;
+  } else if (isBuyer && orgId) {
+    rows = await sql`SELECT * FROM inquiry WHERE organization_id = ${orgId}`;
   }
   const inquiries = parseRows(inquirySchema, rows);
   const inquiryIds = inquiries.map((i) => i.id);
 
   let orderRows: Record<string, unknown>[] = [];
-  if (inquiryIds.length > 0) {
-    if (has("broker") || has("buyer")) {
-      orderRows = await sql`
-        SELECT * FROM "order" WHERE inquiry_id = ANY(${inquiryIds})
-      `;
-    }
+  if (inquiryIds.length > 0 && (isOperator || (isBuyer && orgId))) {
+    orderRows = await sql`SELECT * FROM "order" WHERE inquiry_id = ANY(${inquiryIds})`;
   }
-
-  const orders = sanitizeOrders(parseRows(orderSchema, orderRows), has("broker"));
+  const orders = sanitizeOrders(parseRows(orderSchema, orderRows), isOperator);
 
   const userIds = [...new Set(inquiries.map((i) => i.userId))];
   const userRows = userIds.length
@@ -50,7 +41,9 @@ export async function GET() {
 
 export async function POST(request: Request) {
   const ctx = await getAuthContext();
-  if (!ctx.roles.some((r) => r.name === "buyer"))
+  const { orgId, isBuyer, canManage } = access(ctx);
+  // Only a buyer Business's owner/admin can open inquiries.
+  if (!orgId || !isBuyer || !canManage)
     return new Response("Forbidden", { status: 403 });
   const userId = ctx.user.id;
   let fields: Inquiry;
@@ -61,12 +54,11 @@ export async function POST(request: Request) {
       err instanceof ZodError ? err.issues[0].message : "Invalid request body";
     return new Response(message, { status: 400 });
   }
-  if (fields.userId !== userId) {
-    return new Response("Cannot create an inquiry for another user", {
-      status: 403,
-    });
-  }
-  const { columns, placeholders, values } = insertClause({ ...fields, userId });
+  const { columns, placeholders, values } = insertClause({
+    ...fields,
+    userId,
+    organizationId: orgId,
+  });
   const rows = await sql.query(
     `INSERT INTO inquiry (${columns}) VALUES (${placeholders}) RETURNING *`,
     values,

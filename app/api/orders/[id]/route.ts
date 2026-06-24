@@ -1,6 +1,7 @@
 import { z, ZodError } from "zod";
 import { sql } from "@/lib/db/db";
 import getAuthContext from "@/lib/auth/getAuthContext";
+import { access } from "@/lib/auth/access";
 import { orderSchema, sanitizeOrder } from "@/lib/model/order/Order";
 import type Order from "@/lib/model/order/Order";
 import { orderOfferSchema } from "@/lib/model/orderOffer/OrderOffer";
@@ -12,13 +13,10 @@ type Params = { params: Promise<{ id: string }> };
 
 export async function PATCH(request: Request, { params }: Params) {
   const ctx = await getAuthContext();
-  const has = (name: string) => ctx.roles.some((r) => r.name === name);
-  const isBroker = has("broker");
-  const isBuyer = has("buyer");
-  // sellers are read-only for now; brokers and buyers are the only writers.
-  if (!isBroker && !isBuyer)
+  const { isOperator, orgId, isBuyer } = access(ctx);
+  // sellers are read-only for now; operators and buyer orgs are the only writers.
+  if (!isOperator && !(isBuyer && orgId))
     return new Response("Forbidden", { status: 403 });
-  const userId = ctx.user.id;
   const { id } = await params;
 
   let fields: Order;
@@ -37,7 +35,7 @@ export async function PATCH(request: Request, { params }: Params) {
   if (!currentRows[0]) return new Response("Not found", { status: 404 });
   const current = parseRow(orderSchema, currentRows[0]);
 
-  if (isBroker) {
+  if (isOperator) {
     const currentLinks = await sql`
       SELECT offer_id FROM order_offer WHERE order_id = ${id}
     `;
@@ -52,7 +50,7 @@ export async function PATCH(request: Request, { params }: Params) {
       (fields.notes ?? null) !== (current.notes ?? null) ||
       wantOfferIds.join(",") !== currentOfferIds.join(",");
 
-    // the broker can move status freely, but offers/inquiry/margin/notes are
+    // the operator can move status freely, but offers/inquiry/margin/notes are
     // locked once the order leaves MATCHED.
     if (current.status !== "MATCHED" && nonStatusChanged)
       return new Response(
@@ -71,10 +69,7 @@ export async function PATCH(request: Request, { params }: Params) {
     });
 
     const queries = [
-      sql.query(
-        `UPDATE "order" SET ${set} WHERE ${where} RETURNING *`,
-        values,
-      ),
+      sql.query(`UPDATE "order" SET ${set} WHERE ${where} RETURNING *`, values),
     ];
     if (wantOfferIds.join(",") !== currentOfferIds.join(",")) {
       queries.push(sql.query(`DELETE FROM order_offer WHERE order_id = $1`, [id]));
@@ -95,11 +90,11 @@ export async function PATCH(request: Request, { params }: Params) {
     });
   }
 
-  // buyer path: must own the order's inquiry, and may only approve or cancel a
-  // still-MATCHED order.
+  // buyer path: the buyer org must own the order's inquiry, and may only approve
+  // or cancel a still-MATCHED order.
   const owned = await sql`
     SELECT 1 FROM inquiry
-    WHERE id = ${current.inquiryId} AND user_id = ${userId}
+    WHERE id = ${current.inquiryId} AND organization_id = ${orgId}
   `;
   if (!owned[0]) return new Response("Forbidden", { status: 403 });
 
@@ -114,7 +109,7 @@ export async function PATCH(request: Request, { params }: Params) {
   const updated = await sql`
     UPDATE "order" SET status = ${fields.status} WHERE id = ${id} RETURNING *
   `;
-  const order = sanitizeOrder(parseRow(orderSchema, updated[0]), isBroker);
+  const order = sanitizeOrder(parseRow(orderSchema, updated[0]), isOperator);
   const links = await sql`SELECT * FROM order_offer WHERE order_id = ${id}`;
   return Response.json({
     order: [order],

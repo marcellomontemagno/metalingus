@@ -1,6 +1,7 @@
 import { z, ZodError } from "zod";
 import { sql } from "@/lib/db/db";
 import getAuthContext from "@/lib/auth/getAuthContext";
+import { access } from "@/lib/auth/access";
 import { orderSchema, sanitizeOrders } from "@/lib/model/order/Order";
 import type Order from "@/lib/model/order/Order";
 import { orderOfferSchema } from "@/lib/model/orderOffer/OrderOffer";
@@ -10,16 +11,12 @@ import insertClause from "@/lib/db/insertClause";
 
 export async function GET() {
   const ctx = await getAuthContext();
-  const has = (name: string) => ctx.roles.some((r) => r.name === name);
-  const isBroker = has("broker");
-  const isBuyer = has("buyer");
-  const isSeller = has("seller");
-  const userId = ctx.user.id;
-  if (!isBroker && !isBuyer && !isSeller) {
+  const { isOperator, orgId, isBuyer, isSeller } = access(ctx);
+  if (!isOperator && !orgId) {
     return Response.json({ order: [], orderOffer: [] });
   }
   let orderRows: Record<string, unknown>[];
-  if (isBroker) {
+  if (isOperator) {
     orderRows = await sql`SELECT * FROM "order"`;
   } else {
     const byId = new Map<string, Record<string, unknown>>();
@@ -27,7 +24,7 @@ export async function GET() {
       (
         await sql`
           SELECT * FROM "order"
-          WHERE inquiry_id IN (SELECT id FROM inquiry WHERE user_id = ${userId})
+          WHERE inquiry_id IN (SELECT id FROM inquiry WHERE organization_id = ${orgId})
         `
       ).forEach((r) => byId.set(r.id as string, r));
     }
@@ -38,7 +35,7 @@ export async function GET() {
           WHERE id IN (
             SELECT oo.order_id FROM order_offer oo
             JOIN offer f ON f.id = oo.offer_id
-            WHERE f.user_id = ${userId})
+            WHERE f.organization_id = ${orgId})
         `
       ).forEach((r) => byId.set(r.id as string, r));
     }
@@ -46,7 +43,7 @@ export async function GET() {
   }
 
   let linkRows: Record<string, unknown>[];
-  if (isBroker) {
+  if (isOperator) {
     linkRows = await sql`SELECT * FROM order_offer`;
   } else {
     const byId = new Map<string, Record<string, unknown>>();
@@ -54,7 +51,7 @@ export async function GET() {
       (
         await sql`
           SELECT * FROM order_offer
-          WHERE offer_id IN (SELECT id FROM offer WHERE user_id = ${userId})
+          WHERE offer_id IN (SELECT id FROM offer WHERE organization_id = ${orgId})
         `
       ).forEach((r) => byId.set(r.id as string, r));
     }
@@ -64,14 +61,14 @@ export async function GET() {
           SELECT * FROM order_offer
           WHERE order_id IN (
             SELECT id FROM "order"
-            WHERE inquiry_id IN (SELECT id FROM inquiry WHERE user_id = ${userId}))
+            WHERE inquiry_id IN (SELECT id FROM inquiry WHERE organization_id = ${orgId}))
         `
       ).forEach((r) => byId.set(r.id as string, r));
     }
     linkRows = [...byId.values()];
   }
 
-  const orders = sanitizeOrders(parseRows(orderSchema, orderRows), isBroker);
+  const orders = sanitizeOrders(parseRows(orderSchema, orderRows), isOperator);
 
   return Response.json({
     order: orders,
@@ -81,8 +78,9 @@ export async function GET() {
 
 export async function POST(request: Request) {
   const ctx = await getAuthContext();
-  if (!ctx.roles.some((r) => r.name === "broker"))
-    return new Response("Forbidden", { status: 403 });
+  const { isOperator } = access(ctx);
+  // Orders are broker-mediated — only platform operators create them.
+  if (!isOperator) return new Response("Forbidden", { status: 403 });
   const userId = ctx.user.id;
 
   let fields: Order;
@@ -97,12 +95,17 @@ export async function POST(request: Request) {
     return new Response(message, { status: 400 });
   }
 
-  // brokers always own the order; new orders start MATCHED regardless of input.
+  // the order belongs to the buyer Business it fulfills (its inquiry's org).
+  const inq = await sql`SELECT organization_id FROM inquiry WHERE id = ${fields.inquiryId}`;
+  const organizationId = (inq[0]?.organization_id as string | null) ?? null;
+
+  // operators always own the order; new orders start MATCHED regardless of input.
   const order: Order = {
     ...fields,
     status: "MATCHED",
     margin: fields.margin ?? 0,
     userId,
+    organizationId,
   };
   const { columns, placeholders, values } = insertClause(order);
 
