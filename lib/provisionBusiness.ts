@@ -1,6 +1,5 @@
 import { auth } from "@/lib/auth";
 import { sql } from "@/lib/db/db";
-import { sendWelcomeEmail } from "@/lib/email";
 
 export type BusinessType = "buyer" | "seller" | "both";
 
@@ -26,15 +25,15 @@ async function grantRole(userId: string, role: string): Promise<void> {
 // Provision a buyer/seller Business: allowlist the owner, create the Business
 // (owner membership), and apply the buyer/seller designation (global role today —
 // the Phase-1 mapping; moves to the organization `kind` field in Phase 3). Shared
-// by the operator panel and the `provision-business` CLI.
+// by the operator panel and the `provision-business` CLI. (The optional welcome
+// email is sent by the caller as a one-click magic link.)
 export async function provisionBusiness(opts: {
   email: string;
   businessName: string;
   type: BusinessType;
   contactName?: string;
-  sendEmail?: boolean;
-}): Promise<{ userId: string; orgSlug: string; emailSent: boolean }> {
-  const { email, businessName, type, contactName, sendEmail } = opts;
+}): Promise<{ userId: string; orgSlug: string }> {
+  const { email, businessName, type, contactName } = opts;
   const userId = await createOrFindUser(email, contactName);
 
   const orgSlug = slugify(businessName);
@@ -42,8 +41,7 @@ export async function provisionBusiness(opts: {
 
   for (const r of type === "both" ? ["buyer", "seller"] : [type]) await grantRole(userId, r);
 
-  const emailSent = sendEmail ? await sendWelcomeEmail(email, businessName) : false;
-  return { userId, orgSlug, emailSent };
+  return { userId, orgSlug };
 }
 
 // Provision a platform operator: allowlist the user and grant the broker role.
@@ -51,11 +49,9 @@ export async function provisionBusiness(opts: {
 export async function provisionOperator(opts: {
   email: string;
   contactName?: string;
-  sendEmail?: boolean;
-}): Promise<{ userId: string; emailSent: boolean }> {
-  const { email, contactName, sendEmail } = opts;
+}): Promise<{ userId: string }> {
+  const { email, contactName } = opts;
   const userId = await createOrFindUser(email, contactName);
   await grantRole(userId, "broker");
-  const emailSent = sendEmail ? await sendWelcomeEmail(email, "platform operator") : false;
-  return { userId, emailSent };
+  return { userId };
 }

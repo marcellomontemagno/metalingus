@@ -9,7 +9,6 @@ neonConfig.webSocketConstructor = ws;
 
 const resend = new Resend(process.env.AUTH_RESEND_KEY);
 const from = process.env.AUTH_EMAIL_FROM ?? "auth@keepalink.com";
-const appUrl = process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
 
 export const auth = betterAuth({
   // Same Neon database the app already uses — via the WebSocket Pool, not the
@@ -24,25 +23,28 @@ export const auth = betterAuth({
     magicLink({
       // Invite-only: never auto-provision an unknown email.
       disableSignUp: true,
+      // One sender for every magic link, framed by the callbackURL. Operator/
+      // business provisioning sends a one-click welcome (callbackURL `/?welcome`).
       sendMagicLink: async ({ email, url }) => {
+        let subject = "Your metalingus sign-in link";
+        let intro = "Sign in to metalingus:";
+        try {
+          if ((new URL(url).searchParams.get("callbackURL") ?? "").includes("welcome")) {
+            subject = "You've been added to metalingus";
+            intro = "An account was created for you on metalingus. Click to sign in:";
+          }
+        } catch {}
         await resend.emails.send({
           from,
           to: email,
-          subject: "Your metalingus sign-in link",
-          html: `<p>Sign in to metalingus:</p><p><a href="${url}">${url}</a></p>`,
+          subject,
+          html: `<p>${intro}</p><p><a href="${url}">${url}</a></p>`,
         });
       },
     }),
-    organization({
-      sendInvitationEmail: async ({ email, organization, inviter, invitation }) => {
-        const url = `${appUrl}/accept-invite?id=${invitation.id}`;
-        await resend.emails.send({
-          from,
-          to: email,
-          subject: `Join ${organization.name} on metalingus`,
-          html: `<p>${inviter.user.name ?? inviter.user.email} invited you to join <strong>${organization.name}</strong>.</p><p><a href="${url}">Accept invitation</a></p>`,
-        });
-      },
-    }),
+    // Invitation create/accept (the Members UI + `/accept-invite`) is parked on
+    // the members-management branch, so there's no sendInvitationEmail here yet —
+    // the invitation tables/API exist via the plugin, just no delivery.
+    organization(),
   ],
 });

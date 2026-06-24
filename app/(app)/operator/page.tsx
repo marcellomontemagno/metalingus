@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import getAuthContext from "@/lib/auth/getAuthContext";
+import { auth } from "@/lib/auth";
 import {
   provisionBusiness,
   provisionOperator,
@@ -27,6 +29,15 @@ async function assertBroker() {
 
 function emailState(requested: boolean, sent: boolean): string {
   return requested ? (sent ? "sent" : "failed") : "none";
+}
+
+// One-click welcome: a magic link that signs the provisioned user straight into
+// the app. Returns whether it sent (best-effort — bounces on an unverified domain).
+async function sendSignInLink(email: string): Promise<boolean> {
+  return auth.api
+    .signInMagicLink({ body: { email, callbackURL: "/?welcome" }, headers: await headers() })
+    .then(() => true)
+    .catch(() => false);
 }
 
 export default async function OperatorPage({
@@ -59,15 +70,15 @@ export default async function OperatorPage({
     if (!email || !businessName || !["buyer", "seller", "both"].includes(type)) {
       redirect("/operator?error=" + encodeURIComponent("Missing or invalid business fields"));
     }
-    let result;
     try {
-      result = await provisionBusiness({ email, businessName, type: type as BusinessType, sendEmail });
+      await provisionBusiness({ email, businessName, type: type as BusinessType });
     } catch (e) {
       redirect("/operator?error=" + encodeURIComponent(e instanceof Error ? e.message : "Provisioning failed"));
     }
+    const emailSent = sendEmail ? await sendSignInLink(email) : false;
     revalidatePath("/operator");
     redirect(
-      `/operator?provisioned=${encodeURIComponent(businessName)}&email=${emailState(sendEmail, result.emailSent)}`,
+      `/operator?provisioned=${encodeURIComponent(businessName)}&email=${emailState(sendEmail, emailSent)}`,
     );
   }
 
@@ -79,15 +90,15 @@ export default async function OperatorPage({
     if (!email) {
       redirect("/operator?error=" + encodeURIComponent("Operator email is required"));
     }
-    let result;
     try {
-      result = await provisionOperator({ email, sendEmail });
+      await provisionOperator({ email });
     } catch (e) {
       redirect("/operator?error=" + encodeURIComponent(e instanceof Error ? e.message : "Provisioning failed"));
     }
+    const emailSent = sendEmail ? await sendSignInLink(email) : false;
     revalidatePath("/operator");
     redirect(
-      `/operator?provisioned=${encodeURIComponent(email)}&email=${emailState(sendEmail, result.emailSent)}`,
+      `/operator?provisioned=${encodeURIComponent(email)}&email=${emailState(sendEmail, emailSent)}`,
     );
   }
 
