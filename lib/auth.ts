@@ -1,5 +1,5 @@
 import { betterAuth } from "better-auth";
-import { magicLink } from "better-auth/plugins";
+import { magicLink, organization } from "better-auth/plugins";
 import { Pool, neonConfig } from "@neondatabase/serverless";
 import ws from "ws";
 import { Resend } from "resend";
@@ -9,6 +9,7 @@ neonConfig.webSocketConstructor = ws;
 
 const resend = new Resend(process.env.AUTH_RESEND_KEY);
 const from = process.env.AUTH_EMAIL_FROM ?? "auth@keepalink.com";
+const appUrl = process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
 
 export const auth = betterAuth({
   // Same Neon database the app already uses — via the WebSocket Pool, not the
@@ -29,6 +30,17 @@ export const auth = betterAuth({
           to: email,
           subject: "Your metalingus sign-in link",
           html: `<p>Sign in to metalingus:</p><p><a href="${url}">${url}</a></p>`,
+        });
+      },
+    }),
+    organization({
+      sendInvitationEmail: async ({ email, organization, inviter, invitation }) => {
+        const url = `${appUrl}/accept-invite?id=${invitation.id}`;
+        await resend.emails.send({
+          from,
+          to: email,
+          subject: `Join ${organization.name} on metalingus`,
+          html: `<p>${inviter.user.name ?? inviter.user.email} invited you to join <strong>${organization.name}</strong>.</p><p><a href="${url}">Accept invitation</a></p>`,
         });
       },
     }),
