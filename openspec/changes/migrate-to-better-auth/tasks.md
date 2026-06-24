@@ -1,8 +1,8 @@
 ## 1. Phase 0 — Spike & decisions
 
 - [ ] 1.1 Spike Better Auth on the `@neondatabase/serverless` `Pool` in the app runtime (queries + sessions); confirm or pick a fallback dialect
-- [ ] 1.2 Decide broker's home (admin plugin vs `user.platformRole` field vs platform org) and the org `kind` (buyer/seller/both) field
-- [ ] 1.3 Dry-run the data migration (users/accounts/verification → Better Auth; a Business per existing user) on a staging copy
+- [ ] 1.2 Finalize the org `kind` (buyer/seller/both) field shape — broker's home is decided (Better Auth admin plugin)
+- [ ] 1.3 Greenfield: rebuild the schema and re-seed sample data on Better Auth (no backfill); confirm a clean cutover
 
 ## 2. Phase 1 — Provider swap (like-for-like)
 

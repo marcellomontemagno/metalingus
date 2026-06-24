@@ -22,7 +22,7 @@ The product needs **Businesses operated by multiple users** (shared resources, m
 
 **1. Better Auth first — not Drizzle first.** Better Auth runs directly on the `@neondatabase/serverless` `Pool` and manages its own tables; it needs no ORM. Drizzle-first would force rewriting every route handler's raw SQL and the test adapter — a large change orthogonal to the auth/org goal. *Alternative:* Drizzle-first with Better Auth's drizzle adapter (unified migrations) — deferred unless ORM adoption becomes a committed, separate initiative. *Trade-off:* schema management splits (Better Auth CLI for auth tables; `scripts/db/schema.sql` for app tables).
 
-**2. `broker` is a platform role, not org-scoped.** The broker is the marketplace operator standing outside both buyer and seller Businesses. *Options:* (a) Better Auth `admin` plugin global role, (b) a `user.platformRole` field, (c) a dedicated "platform" organization. *Decision:* model at the user/platform level (admin plugin or a user field). (c) is uniform but forces brokers artificially into the org model. Final pick in Phase 0.
+**2. `broker` is a platform role, modeled via the Better Auth `admin` plugin.** The broker is the marketplace operator standing outside both buyer and seller Businesses. *Decision:* a custom platform role in the admin plugin's access control — chosen over a bare `user.platformRole` field because it brings a real permission system now, the natural home for the permission-driven field visibility in Future Directions (e.g. `order:viewMargin`). *Rejected:* a dedicated "platform" organization (uniform, but forces brokers artificially into a Business). The role is only re-homed when roles move org-scoped (Phase 3); Phase 1 keeps `broker` in the temporary role mapping.
 
 **3. `buyer`/`seller` is a Business *type*, not a member role.** Member roles (`owner`/`admin`/`member`) describe *who* in a business may act; the buyer/seller capability describes *what* the business does. Model type as an organization field (`kind: buyer | seller | both`) — platform-set today (matching the current invite-only provisioning); self-serve at onboarding in the target model.
 
@@ -36,29 +36,27 @@ The product needs **Businesses operated by multiple users** (shared resources, m
 
 ## Risks / Trade-offs
 
-- **Data migration** (next-auth `user`/`account`/`verification_token` → Better Auth schema) → one-time backfill: map users, create a Business per existing user (type from former roles), set creator as `owner`, backfill entity `organization_id`, flag brokers at the platform level.
+- **Data migration — none (greenfield).** No real users yet, so we rebuild the schema and re-seed sample data on Better Auth instead of backfilling, and the JWT→session cutover is a non-event. (The backfill path — users→Businesses, entities→org — is only needed once real users exist before a cutover.)
 - **Neon WebSocket `Pool` under Better Auth in the serverless runtime** → de-risk with the Phase 0 spike; fallback to a Kysely neon dialect.
-- **JWT → DB session cutover logs everyone out** → one-time re-auth via a fresh magic link; communicate before cutover.
+- **JWT → DB session cutover** → moot while greenfield (no live sessions); becomes a one-time re-auth via magic link once there are real users.
 - **Invite-only with magic link could auto-provision unknown emails** → disable open sign-up; gate account creation behind invitation acceptance (confirm exact Better Auth option/hook in Phase 0).
 - **Spec drift**: `inquiries`/`offers`/`orders` specs still describe per-user visibility → reconcile their scenarios to org-scoped in Phase 3 (or a follow-up change).
 - **Schema fragmentation** (Better Auth CLI vs `scripts/db/schema.sql`) → accept and document; revisit if Drizzle is adopted.
 
 ## Migration Plan
 
-Phased, each shippable; next-auth stays removable until Phase 1 is validated in staging.
+**This pass covers Phase 1 only**; Phases 2–3 follow as later changes. Phased, each shippable; next-auth stays removable until Phase 1 is validated.
 
-- **Phase 0 — Spike & decide**: confirm Better Auth on the neon `Pool`; finalize broker's home and the org-type field; dry-run the data migration.
-- **Phase 1 — Provider swap (like-for-like)**: Better Auth + `magicLink`/Resend, DB sessions, middleware, invite-only; re-implement `getAuthContext()` keeping the existing `{ user, roles }` shape via a temporary role mapping so the app is otherwise unchanged. Existing tests stay green. Cutover invalidates sessions (re-login).
-- **Phase 2 — Organizations**: organization plugin, members, invitations (Resend), member roles, active-org switcher; provision a Business per existing user (backfill).
+- **Phase 0 — Spike & decide**: confirm Better Auth on the neon `Pool`; rebuild the schema and re-seed sample data on Better Auth (broker = admin plugin and greenfield are already decided).
+- **Phase 1 — Provider swap (like-for-like)**: Better Auth + `magicLink`/Resend, DB sessions, middleware, invite-only; re-implement `getAuthContext()` keeping the existing `{ user, roles }` shape via a temporary role mapping so the app is otherwise unchanged. Existing tests stay green; greenfield means no session cutover to manage.
+- **Phase 2 — Organizations**: organization plugin, members, invitations (Resend), member roles, active-org switcher; provision Businesses fresh (greenfield). Teams deferred.
 - **Phase 3 — Re-home the domain**: add `organization_id`/`created_by` and backfill; org-type and platform-role; switch handler visibility/ownership to org-scoped; evolve the `getAuthContext`/`useAuthContext` shape; reconcile entity specs + tests; drop `role`/`user_role`.
 
 Rollback: Phase 1 is the riskiest (provider swap) — keep next-auth removable until validated. Phases 2–3 are additive + backfill; keep `organization_id` nullable until cutover so they're reversible.
 
 ## Open Questions
 
-- broker's home: `admin` plugin vs `user.platformRole` field vs a platform org — decide in Phase 0.
 - Do `inquiries`/`offers`/`orders` specs get their visibility modified in this change or a follow-up?
-- Teams: build now or defer? (Spec carries a light requirement; implementation may defer.)
 - Exact Better Auth mechanism for "no auto-provision on magic-link" (`disableSignUp` vs a before-hook).
 
 ## Future Directions
