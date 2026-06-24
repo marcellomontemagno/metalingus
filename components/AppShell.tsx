@@ -24,6 +24,7 @@ export default async function AppShell({
     ...(has("broker") || has("buyer") || has("seller")
       ? [{ href: "/orders", label: "Orders", icon: "package" }]
       : []),
+    ...(has("broker") ? [{ href: "/operator", label: "Operator", icon: "shield" }] : []),
   ];
 
   async function signOutAction() {
