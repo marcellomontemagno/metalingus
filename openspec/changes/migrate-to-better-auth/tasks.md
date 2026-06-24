@@ -18,12 +18,12 @@
 
 ## 3. Phase 2 — Organizations
 
-- [x] 3.1 Added the `organization` plugin (server) + Resend `sendInvitationEmail`; ran migrate — **organization/member/invitation tables + `session.activeOrganizationId`** (client `organizationClient` deferred with the switcher, 3.4)
+- [x] 3.1 Added the `organization` plugin (server) + ran migrate — **organization/member/invitation tables + `session.activeOrganizationId`** (client `organizationClient` deferred with the switcher, 3.4)
 - [x] 3.2 Provisioned a Business per user via `auth.api.createOrganization` (owner membership) — `db:seed-orgs` (skips `broker` users, so operators get no Business); buyer@/seller@ each own a Business
-- [ ] 3.3 **Parked on the `members-management` branch** — invitations + accept flow (Members-page invite, public `/accept-invite`, one-click magic links). This branch keeps the org plugin's invitation tables/API but ships no member UI
-- [ ] 3.4 **Deferred** — shipped a read-only current-Business display in the sidebar (first membership) instead of the switcher. Still to build once multi-Business membership is real: `organizationClient`, `setActive` + dropdown, and reading the active org in `AppShell`/`getAuthContext`
-- [ ] 3.5 **Parked on the `members-management` branch** — member management (invite / remove / change role) on the Members page
-- [x] 3.6 Operator panel `/operator` (broker-gated): provision Businesses + operators with optional welcome email — `provisionBusiness`/`provisionOperator` + `provision-business` CLI; live Businesses/Operators lists
+- [x] 3.3 Invitations + accept flow: Members-page invite (`createInvitation`) + public `/accept-invite` (`acceptInvitation`; signed-out → sign-in → back). **Delivered as one-click magic links** (`signInMagicLink` → `callbackURL`), framed by the invitation's org + inviter; the org plugin's `sendInvitationEmail` was dropped in favor of this
+- [ ] 3.4 **Deferred** — shipped a read-only current-Business display in the sidebar (first membership, alphabetical) instead of the switcher. Still to build once multi-Business membership is real: client `organizationClient`, `setActive` + switcher dropdown, and reading the **active** org (not first-alphabetical) in `AppShell`/Members/`getAuthContext`
+- [x] 3.5 Member management (invite / remove / change role) for `owner`/`admin` on the Members page; Better Auth enforces the last-owner rule. **Members nav is currently hidden** pending the decision to expose it
+- [x] 3.6 (added) Operator panel `/operator` (broker-gated): provision Businesses + operators with an optional one-click welcome magic link — `provisionBusiness`/`provisionOperator` + `provision-business` CLI; live Businesses/Operators lists
 
 ## 4. Phase 3 — Re-home the domain
 
