@@ -30,7 +30,7 @@
 - [x] 4.1 Added `organization_id` to `inquiry`/`offer`/`order` (nullable, additive); `seed-orgs` links each entity to its owner's Business. No backfill (greenfield reset); `created_by` folds into the Step-5 `user_id`→`created_by` rename
 - [x] 4.2 Added `kind` (buyer/seller/both) to `organization` via the plugin's `additionalFields`; `seed-orgs` derives it from the user's roles. No backfill
 - [x] 4.3 Modeled the platform role as a `platformRole` user field (`operator`), set by `provisionOperator` — lighter than the admin plugin (decision #2 revisited). Additive: the global `broker` role stays until Step 4/4.7
-- [ ] 4.4 Switch route-handler visibility/ownership from `user_id` to `organization_id`; gate writes by business type + member role; keep broker-sees-all and margin privacy
+- [x] 4.4 All 6 handlers org-scoped via `access(ctx)`: visibility by `organization_id`, writes gated by `kind` + owner/admin `memberRole`, orders operator-only; broker-sees-all + margin privacy preserved; ownership stamped server-side. Harness reworked (roles→org/platformRole); tsc 0, 28 tests pass
 - [ ] 4.5 Evolve the `getAuthContext` / `useAuthContext` shape to `{ user, organization, member role, platform role }`
 - [ ] 4.6 Reconcile the `inquiries`/`offers`/`orders` spec visibility scenarios to org-scoped; update tests
 - [ ] 4.7 Drop `role` and `user_role`
