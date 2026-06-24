@@ -9,6 +9,7 @@ neonConfig.webSocketConstructor = ws;
 
 const resend = new Resend(process.env.AUTH_RESEND_KEY);
 const from = process.env.AUTH_EMAIL_FROM ?? "auth@keepalink.com";
+const appUrl = process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
 
 export const auth = betterAuth({
   // Same Neon database the app already uses — via the WebSocket Pool, not the
@@ -46,13 +47,24 @@ export const auth = betterAuth({
         });
       },
     }),
-    // Invitation create/accept (the Members UI + `/accept-invite`) is parked on
-    // the members-management branch — no sendInvitationEmail here yet. Phase 3:
-    // `kind` (buyer/seller/both) is the org's business type, which replaces the
-    // global buyer/seller roles.
+    // `kind` (buyer/seller/both) is the org's business type. sendInvitationEmail
+    // delivers org invites (the Members UI + `/accept-invite`).
     organization({
       schema: {
         organization: { additionalFields: { kind: { type: "string", required: false } } },
+      },
+      sendInvitationEmail: async ({ email, organization, inviter, invitation }) => {
+        const url = `${appUrl}/accept-invite?id=${invitation.id}`;
+        try {
+          await resend.emails.send({
+            from,
+            to: email,
+            subject: `Join ${organization.name} on metalingus`,
+            html: `<p>${inviter.user.name ?? inviter.user.email} invited you to join <strong>${organization.name}</strong>.</p><p><a href="${url}">Accept invitation</a></p>`,
+          });
+        } catch (e) {
+          console.error("invitation email failed:", e);
+        }
       },
     }),
   ],
