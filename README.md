@@ -4,7 +4,7 @@ A broker-mediated B2B marketplace for steel bars. Buyers post **inquiries** (wha
 sellers post **offers** (what they have in stock), and brokers create **orders** that match an
 inquiry to one or more offers with a margin. The broker's margin is never shown to buyers or sellers.
 
-**Stack:** Next.js 16 (App Router) · React 19 · next-auth v5 (Resend magic-link, invite-only) ·
+**Stack:** Next.js 16 (App Router) · React 19 · Better Auth (Resend magic-link, invite-only) ·
 Neon serverless Postgres (no ORM, hand-rolled SQL) · Zustand · Zod · Tailwind v4 / shadcn.
 
 Specs and change proposals live in [`openspec/`](./openspec) — `openspec/specs` for current
@@ -35,21 +35,21 @@ cp .env.example .env.local
 
 Fill in the values in `.env.local` (see `.env.example` for what each does):
 
-- `AUTH_SECRET` — any random 32+ byte string: `openssl rand -base64 33` (or `node -e "console.log(crypto.randomBytes(33).toString('base64'))"`). Note: don't use `npx auth secret` — the `auth` package on npm is an unrelated CLI (Better Auth).
+- `AUTH_SECRET` — any random 32+ byte string: `openssl rand -base64 33` (or `node -e "console.log(crypto.randomBytes(33).toString('base64'))"`). Better Auth reads `BETTER_AUTH_SECRET` and falls back to this.
 - `POSTGRES_URL` — your Neon connection string
 - `AUTH_RESEND_KEY` — your Resend API key
 - `AUTH_EMAIL_FROM` — *(optional)* magic-link sender; the template defaults it to `onboarding@resend.dev` for local dev. Falls back to `auth@keepalink.com` when unset.
 
-### 3. Bootstrap the database
+### 3. Set up the database
 
 ```bash
-pnpm db:setup     # creates the schema, then loads sample inquiries/offers
+pnpm db:setup     # Better Auth migrate, then app tables + sample data
 ```
 
-This runs `scripts/db/schema.sql` and `scripts/db/seed.sql` against `POSTGRES_URL`. Also available:
-`pnpm db:bootstrap` (schema only), `pnpm db:seed` (sample data only), `pnpm db:reset` (drop and
-rebuild — destructive). No-Node alternative: paste those two files into the Neon SQL editor. See
-[`SETUP.md`](./SETUP.md) for details.
+This runs the Better Auth schema migration (`user`/`session`/`account`/`verification`), then
+`scripts/db/schema.sql` (app tables) and `scripts/db/seed.sql` (sample inquiries/offers) against
+`POSTGRES_URL`. Run the parts individually with `pnpm db:auth-migrate`, `pnpm db:bootstrap`,
+`pnpm db:seed`; or `pnpm db:reset` to wipe and rebuild (destructive). See [`SETUP.md`](./SETUP.md).
 
 ### 4. Create your sign-in user
 

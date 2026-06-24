@@ -1,25 +1,11 @@
-// DESTRUCTIVE: drops every app table and type (including all users -- you'll need
-// to recreate your invite-only sign-in user afterwards). Used by `pnpm db:reset`,
-// which then re-runs bootstrap + seed.
+// DESTRUCTIVE: wipes the entire public schema (Better Auth tables + app tables).
+// `pnpm db:reset` re-runs the Better Auth migrate + app bootstrap + seed afterwards.
+// You'll need to recreate your invite-only sign-in user (see SETUP.md).
 import { getSql } from "./_run.mjs";
 
 const sql = getSql();
 
-// Tables first (CASCADE clears FKs and dependent rows), then the enum types.
-const drops = [
-  'DROP TABLE IF EXISTS order_offer CASCADE',
-  'DROP TABLE IF EXISTS "order" CASCADE',
-  "DROP TABLE IF EXISTS user_role CASCADE",
-  "DROP TABLE IF EXISTS account CASCADE",
-  "DROP TABLE IF EXISTS verification_token CASCADE",
-  "DROP TABLE IF EXISTS offer CASCADE",
-  "DROP TABLE IF EXISTS inquiry CASCADE",
-  "DROP TABLE IF EXISTS role CASCADE",
-  'DROP TABLE IF EXISTS "user" CASCADE',
-  "DROP TYPE IF EXISTS order_status",
-  "DROP TYPE IF EXISTS grade",
-  "DROP TYPE IF EXISTS shape",
-];
+await sql.query("DROP SCHEMA public CASCADE");
+await sql.query("CREATE SCHEMA public");
 
-for (const stmt of drops) await sql.query(stmt);
-console.log("Dropped all metalingus tables and types.");
+console.log("Wiped the public schema (Better Auth + app tables).");
