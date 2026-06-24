@@ -11,7 +11,7 @@ The product needs **Businesses operated by multiple users** (shared resources, m
 - Add Businesses (organizations): members, invitations, member roles, optional teams.
 - Re-home roles: `buyer`/`seller` → Business type; `broker` → platform role; `owner`/`admin`/`member` → member roles.
 - Move entity ownership user → organization; make visibility org-scoped (broker still sees all); preserve margin privacy and order-immutability.
-- Preserve the `getAuthContext` / `useAuthContext` seams so the blast radius and test churn stay small.
+- **Preserve as much of what's built as possible** — migrate the provider and the structure, not the app: keep the `getAuthContext`/`useAuthContext` and `sanitizeOrder` seams, the raw-SQL data layer, and the pglite test harness, so blast radius and test churn stay small.
 
 **Non-Goals:**
 - Adopting Drizzle or any ORM (the raw-SQL layer stays; Better Auth uses the neon Pool).
@@ -24,7 +24,7 @@ The product needs **Businesses operated by multiple users** (shared resources, m
 
 **2. `broker` is a platform role, not org-scoped.** The broker is the marketplace operator standing outside both buyer and seller Businesses. *Options:* (a) Better Auth `admin` plugin global role, (b) a `user.platformRole` field, (c) a dedicated "platform" organization. *Decision:* model at the user/platform level (admin plugin or a user field). (c) is uniform but forces brokers artificially into the org model. Final pick in Phase 0.
 
-**3. `buyer`/`seller` is a Business *type*, not a member role.** Member roles (`owner`/`admin`/`member`) describe *who* in a business may act; the buyer/seller capability describes *what* the business does. Model type as an organization field (`kind: buyer | seller | both`), assigned at provisioning (platform-controlled, not self-serve).
+**3. `buyer`/`seller` is a Business *type*, not a member role.** Member roles (`owner`/`admin`/`member`) describe *who* in a business may act; the buyer/seller capability describes *what* the business does. Model type as an organization field (`kind: buyer | seller | both`) — platform-set today (matching the current invite-only provisioning); self-serve at onboarding in the target model.
 
 **4. Database-backed sessions (Better Auth default), not JWT.** Enables server-side revocation and an active-organization claim; middleware uses the cookie cache (`compact`) for optimistic redirects. *Trade-off:* a `session` table and DB lookups, mitigated by the cookie cache.
 
@@ -57,7 +57,14 @@ Rollback: Phase 1 is the riskiest (provider swap) — keep next-auth removable u
 ## Open Questions
 
 - broker's home: `admin` plugin vs `user.platformRole` field vs a platform org — decide in Phase 0.
-- Can a Business be both buyer and seller, and can one user operate multiple Businesses? (Assumed yes; confirm with product.)
 - Do `inquiries`/`offers`/`orders` specs get their visibility modified in this change or a follow-up?
 - Teams: build now or defer? (Spec carries a light requirement; implementation may defer.)
 - Exact Better Auth mechanism for "no auto-provision on magic-link" (`disableSignUp` vs a before-hook).
+
+## Future Directions
+
+The migration deliberately separates four concerns that are conflated today — **authentication** (Better Auth core), **membership** (org invitations), **authorization** (business type · member role · platform role), and **field redaction** (the `sanitizeOrder` seam). Keeping them apart makes one evolution cheap without building it now:
+
+- **Permission-driven field visibility.** Margin privacy stays enforced in a single serialization seam (`sanitizeOrder` plus the audience-shaped offer query); only the *decision* moves — from a hardcoded `isBroker` to a capability check such as `ctx.can("order:viewMargin")`, resolved by `getAuthContext` against Better Auth's access-control statements. Margin visibility lives on the **platform-role** dimension (broker today; a future "auditor" role could be granted the same capability without touching the redaction code). Relationship/state-dependent rules (e.g. a seller seeing margin on its own delivered orders) exceed pure RBAC and would be expressed in the same seam as ABAC.
+
+This stays cheap only because the migration *preserves rather than replaces*: field visibility remains behind the one sanitize seam, and `getAuthContext` remains the single authorization decision point — resolving capabilities, not just raw roles.
