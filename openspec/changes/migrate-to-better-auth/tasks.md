@@ -18,7 +18,7 @@
 
 ## 3. Phase 2 — Organizations
 
-- [ ] 3.1 Add the `organization` plugin (server + client); run CLI migrate
+- [x] 3.1 Added the `organization` plugin (server) + Resend `sendInvitationEmail`; ran migrate — **organization/member/invitation tables + `session.activeOrganizationId`** (client plugin lands with the switcher UI, 3.4)
 - [ ] 3.2 Provision a Business per existing user and set the creator as `owner` (backfill)
 - [ ] 3.3 Wire invitations via Resend (`sendInvitationEmail`) and the accept-invitation onboarding flow
 - [ ] 3.4 Active-organization selection + org switcher UI; surface the active org in `getAuthContext`
