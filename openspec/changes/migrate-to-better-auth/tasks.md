@@ -18,11 +18,12 @@
 
 ## 3. Phase 2 — Organizations
 
-- [x] 3.1 Added the `organization` plugin (server) + Resend `sendInvitationEmail`; ran migrate — **organization/member/invitation tables + `session.activeOrganizationId`** (client plugin lands with the switcher UI, 3.4)
-- [x] 3.2 Provisioned a Business per user via `auth.api.createOrganization` (owner membership) — `db:seed-orgs` script; buyer@/seller@/g@esposi.to each own a Business
-- [ ] 3.3 Wire invitations via Resend (`sendInvitationEmail`) and the accept-invitation onboarding flow
-- [ ] 3.4 Active-organization selection + org switcher UI; surface the active org in `getAuthContext`
-- [ ] 3.5 Member management (invite / remove / change role) for `owner`/`admin`
+- [x] 3.1 Added the `organization` plugin (server) + Resend `sendInvitationEmail`; ran migrate — **organization/member/invitation tables + `session.activeOrganizationId`** (client `organizationClient` deferred with the switcher, 3.4)
+- [x] 3.2 Provisioned a Business per user via `auth.api.createOrganization` (owner membership) — `db:seed-orgs` (skips `broker` users, so operators get no Business); buyer@/seller@ each own a Business
+- [ ] 3.3 **Parked on the `members-management` branch** — invitations + accept flow (Members-page invite, public `/accept-invite`, one-click magic links). This branch keeps the org plugin's invitation tables/API but ships no member UI
+- [ ] 3.4 **Deferred** — shipped a read-only current-Business display in the sidebar (first membership) instead of the switcher. Still to build once multi-Business membership is real: `organizationClient`, `setActive` + dropdown, and reading the active org in `AppShell`/`getAuthContext`
+- [ ] 3.5 **Parked on the `members-management` branch** — member management (invite / remove / change role) on the Members page
+- [x] 3.6 Operator panel `/operator` (broker-gated): provision Businesses + operators with optional welcome email — `provisionBusiness`/`provisionOperator` + `provision-business` CLI; live Businesses/Operators lists
 
 ## 4. Phase 3 — Re-home the domain
 
