@@ -1,0 +1,4 @@
+[test]
+# Registers the pglite-backed sql adapter and the auth-context mock before any
+# test imports a route handler.
+preload = ["./test/preload.ts"]

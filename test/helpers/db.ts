@@ -1,0 +1,91 @@
+// In-process Postgres (pglite) wearing the @neondatabase/serverless interface, so
+// the real route handlers run unmodified against it. The app uses three shapes:
+//   sql`... ${v} ...`            -> Promise<rows[]>
+//   sql.query(text, params)      -> Promise<rows[]>   (also collectible into a tx)
+//   sql.transaction([q, q, ...]) -> Promise<rows[][]>
+import { readFileSync } from "node:fs";
+import { PGlite } from "@electric-sql/pglite";
+import { asUser } from "./ctx";
+
+const pg = new PGlite(); // in-memory; one per test process
+await pg.exec(readFileSync("scripts/db/schema.sql", "utf8")); // single source of truth
+
+// A thenable that runs lazily on await, and carries text/params so it can be
+// replayed inside a transaction (mirroring neon's NeonQueryPromise).
+function makeQuery(text: string, params: unknown[]) {
+  const run = () => pg.query(text, params).then((r) => r.rows);
+  return {
+    text,
+    params,
+    then: (res: any, rej: any) => run().then(res, rej),
+    catch: (rej: any) => run().catch(rej),
+    finally: (f: any) => run().finally(f),
+  };
+}
+
+export const sql: any = Object.assign(
+  (strings: TemplateStringsArray, ...values: unknown[]) => {
+    let text = strings[0];
+    for (let i = 0; i < values.length; i++) text += `$${i + 1}` + strings[i + 1];
+    return makeQuery(text, values);
+  },
+  {
+    query: (text: string, params: unknown[] = []) => makeQuery(text, params),
+    transaction: async (queries: { text: string; params: unknown[] }[]) =>
+      pg.transaction(async (tx) => {
+        const out: unknown[][] = [];
+        for (const q of queries) out.push((await tx.query(q.text, q.params)).rows);
+        return out;
+      }),
+  },
+);
+
+// Clear all data between tests; keep the seeded role rows.
+export async function reset() {
+  await pg.exec(
+    `TRUNCATE order_offer, "order", user_role, account, verification_token, offer, inquiry, "user" RESTART IDENTITY CASCADE;`,
+  );
+}
+
+export async function makeUser(email: string, roles: string[] = []): Promise<string> {
+  const rows = await sql`INSERT INTO "user" (email) VALUES (${email}) RETURNING id`;
+  const id = rows[0].id as string;
+  for (const r of roles)
+    await sql`INSERT INTO user_role (user_id, role_id) SELECT ${id}, id FROM role WHERE name = ${r}`;
+  return id;
+}
+
+// makeUser + set the session to that email.
+export async function login(email: string, roles: string[] = []): Promise<string> {
+  const id = await makeUser(email, roles);
+  asUser(email);
+  return id;
+}
+
+export async function seedInquiry(userId: string, over: Record<string, any> = {}): Promise<string> {
+  const v = { bars_requested: 100, latest_delivery_date: null, grade: "S235JR", shape: "SQUARE", width: 50, height: 50, thickness: 5, notes: null, ...over };
+  const rows = await sql`INSERT INTO inquiry (bars_requested, latest_delivery_date, grade, shape, width, height, thickness, notes, user_id)
+    VALUES (${v.bars_requested}, ${v.latest_delivery_date}, ${v.grade}, ${v.shape}, ${v.width}, ${v.height}, ${v.thickness}, ${v.notes}, ${userId}) RETURNING id`;
+  return rows[0].id as string;
+}
+
+export async function seedOffer(userId: string, over: Record<string, any> = {}): Promise<string> {
+  const v = { bars_available: 120, grade: "S235JR", shape: "SQUARE", width: 50, height: 50, thickness: 5, bars_per_bundle: 25, weight_per_meter: 6.97, price_per_meter: 11.5, currency: "EUR", notes: null, ...over };
+  const rows = await sql`INSERT INTO offer (bars_available, grade, shape, width, height, thickness, bars_per_bundle, weight_per_meter, price_per_meter, currency, notes, user_id)
+    VALUES (${v.bars_available}, ${v.grade}, ${v.shape}, ${v.width}, ${v.height}, ${v.thickness}, ${v.bars_per_bundle}, ${v.weight_per_meter}, ${v.price_per_meter}, ${v.currency}, ${v.notes}, ${userId}) RETURNING id`;
+  return rows[0].id as string;
+}
+
+export async function seedOrder(
+  brokerId: string,
+  inquiryId: string,
+  offerIds: string[],
+  { status = "MATCHED", margin = 0 }: { status?: string; margin?: number } = {},
+): Promise<string> {
+  const rows = await sql`INSERT INTO "order" (status, inquiry_id, margin, user_id)
+    VALUES (${status}, ${inquiryId}, ${margin}, ${brokerId}) RETURNING id`;
+  const orderId = rows[0].id as string;
+  for (const offerId of offerIds)
+    await sql`INSERT INTO order_offer (id, order_id, offer_id) VALUES (${crypto.randomUUID()}, ${orderId}, ${offerId})`;
+  return orderId;
+}

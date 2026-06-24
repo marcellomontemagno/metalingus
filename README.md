@@ -15,6 +15,7 @@ behavior, `openspec/changes` for proposed work.
 ### Prerequisites
 
 - **Node.js** and **pnpm**
+- **Bun** — only needed to run the test suite ([install](https://bun.sh))
 - A **Neon Postgres** database (the free tier is fine). `@neondatabase/serverless` connects over
   HTTP, so `POSTGRES_URL` must point at a Neon endpoint — a plain `postgres://localhost` will not
   work with this driver. Use a Neon cloud branch (simplest) or the Neon Local proxy.
@@ -78,3 +79,18 @@ link is delivered via Resend.
 | `pnpm build` | Production build |
 | `pnpm start` | Serve the production build |
 | `pnpm lint` | Run ESLint |
+| `pnpm test` | Run the Bun test suite |
+
+## Testing
+
+Tests run on [Bun](https://bun.sh)'s test runner against the **real API route handlers**, with
+[pglite](https://pglite.dev) providing an in-process Postgres — no database or network needed.
+
+```bash
+pnpm test                       # whole suite
+bun test test/orders.test.ts    # a single file
+```
+
+The harness in `test/` swaps the Neon `sql` for a pglite-backed adapter and mocks the auth
+session, so each test drives an actual route handler end-to-end. Coverage tracks the capabilities
+specified in `openspec/specs/`: authentication, access-control, inquiries, offers, and orders.
