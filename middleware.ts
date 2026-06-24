@@ -3,7 +3,7 @@ import { getSessionCookie } from "better-auth/cookies";
 
 // Everything is protected by default. Only these prefixes are public; the Better
 // Auth endpoints (`/api/auth/*`) are already excluded by the matcher below.
-const PUBLIC_PATHS = ["/auth"];
+const PUBLIC_PATHS = ["/auth", "/accept-invite"];
 
 function isPublic(pathname: string) {
   if (pathname === "/") return true;

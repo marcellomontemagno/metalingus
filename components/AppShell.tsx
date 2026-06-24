@@ -36,7 +36,8 @@ export default async function AppShell({
     ...(isOperator || isBuyer || isSeller
       ? [{ href: "/orders", label: "Orders", icon: "package" }]
       : []),
-    ...(currentOrg ? [{ href: "/members", label: "Members", icon: "users" }] : []),
+    // Members hidden until /accept-invite ships (invite links would 404 otherwise).
+    // ...(currentOrg ? [{ href: "/members", label: "Members", icon: "users" }] : []),
     ...(isOperator ? [{ href: "/operator", label: "Operator", icon: "shield" }] : []),
   ];
 
