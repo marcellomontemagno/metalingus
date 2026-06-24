@@ -2,13 +2,13 @@
 
 - [x] 1.1 Spike Better Auth on the `@neondatabase/serverless` `Pool` — **confirmed: `Pool` + `ws` (`neonConfig.webSocketConstructor`) connects to `neondb`**
 - [ ] 1.2 Finalize the org `kind` (buyer/seller/both) field shape — broker's home is decided (Better Auth admin plugin)
-- [ ] 1.3 Greenfield: rebuild the schema and re-seed sample data on Better Auth (no backfill); confirm a clean cutover
+- [x] 1.3 Greenfield: wiped schema, ran Better Auth migrate, reconciled app tables (`user_id` → text FK) + re-seeded — **10 tables, 3 users, sample data, dev operator `g@esposi.to` (all roles)**
 
 ## 2. Phase 1 — Provider swap (like-for-like)
 
 - [x] 2.1 Add `better-auth`; configure `lib/auth.ts` (magicLink via Resend, DB sessions, secret/url) — **constructs, typechecks, magic-link endpoint present** (admin plugin deferred to Phase 3 per decision #2)
 - [ ] 2.2 Mount the Better Auth route handler; remove the next-auth `[...nextauth]` mount — **handler staged at `/api/better-auth`; moves to `/api/auth` + next-auth removed at the swap**
-- [ ] 2.3 Run `@better-auth/cli migrate`; fold the Better Auth tables into the schema source
+- [x] 2.3 Ran `@better-auth/cli migrate` (user/session/account/verification); app `schema.sql` now creates only app tables + FKs to Better Auth's text `user(id)`
 - [ ] 2.4 Re-implement `getAuthContext()` on Better Auth, preserving the existing `{ user, roles }` contract (temporary role mapping)
 - [ ] 2.5 Update `middleware.ts` to the Better Auth session/cookie check (401 for `/api`, redirect for pages)
 - [ ] 2.6 Port sign-in (magic link), sign-out, and `AppShell` flows

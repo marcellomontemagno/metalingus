@@ -1,6 +1,6 @@
--- metalingus schema -- single source of truth for the database structure.
--- Run with: pnpm db:bootstrap  (or paste into the Neon SQL editor / psql).
--- The migrations/ files are historical deltas already folded in here.
+-- metalingus app schema. Better Auth owns user/session/account/verification
+-- (created by `better-auth migrate`); this file creates only the app's own tables
+-- and FKs to Better Auth's text `user(id)`. Run AFTER the migrate: pnpm db:bootstrap
 
 CREATE TYPE shape AS ENUM ('SQUARE', 'RECTANGULAR', 'ROUND');
 
@@ -8,21 +8,19 @@ CREATE TYPE grade AS ENUM ('S235JR', 'DX51');
 
 CREATE TYPE order_status AS ENUM ('MATCHED', 'APPROVED', 'PAID', 'DISPATCHED', 'DELIVERED', 'CANCELLED');
 
--- "user" must exist before the tables that reference it.
-CREATE TABLE "user" (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name TEXT,
-    email TEXT UNIQUE,
-    email_verified TIMESTAMPTZ,
-    image TEXT
-);
-
+-- Phase-1 temporary role mapping: global roles keyed to the Better Auth user.
 CREATE TABLE role (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT UNIQUE NOT NULL
 );
 
 INSERT INTO role (name) VALUES ('buyer'), ('seller'), ('broker') ON CONFLICT (name) DO NOTHING;
+
+CREATE TABLE user_role (
+    user_id TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+    role_id UUID NOT NULL REFERENCES role(id) ON DELETE CASCADE,
+    PRIMARY KEY (user_id, role_id)
+);
 
 CREATE TABLE inquiry (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -34,7 +32,7 @@ CREATE TABLE inquiry (
     height DECIMAL(8,2) NOT NULL,
     thickness DECIMAL(6,2) NOT NULL,
     notes TEXT,
-    user_id UUID NOT NULL REFERENCES "user"(id)
+    user_id TEXT NOT NULL REFERENCES "user"(id)
 );
 
 CREATE TABLE offer (
@@ -50,35 +48,7 @@ CREATE TABLE offer (
     price_per_meter DECIMAL(10,4) NOT NULL,
     currency CHAR(3) NOT NULL DEFAULT 'EUR',
     notes TEXT,
-    user_id UUID NOT NULL REFERENCES "user"(id)
-);
-
-CREATE TABLE verification_token (
-    identifier TEXT,
-    token TEXT,
-    expires TIMESTAMPTZ,
-    PRIMARY KEY (identifier, token)
-);
-
-CREATE TABLE account (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID REFERENCES "user"(id),
-    type TEXT,
-    provider TEXT,
-    provider_account_id TEXT,
-    refresh_token TEXT,
-    access_token TEXT,
-    expires_at BIGINT,
-    token_type TEXT,
-    scope TEXT,
-    id_token TEXT,
-    session_state TEXT
-);
-
-CREATE TABLE user_role (
-    user_id UUID NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
-    role_id UUID NOT NULL REFERENCES role(id) ON DELETE CASCADE,
-    PRIMARY KEY (user_id, role_id)
+    user_id TEXT NOT NULL REFERENCES "user"(id)
 );
 
 CREATE TABLE "order" (
@@ -87,7 +57,7 @@ CREATE TABLE "order" (
     inquiry_id UUID NOT NULL REFERENCES inquiry(id),
     margin DECIMAL(6,4) NOT NULL DEFAULT 0,
     notes TEXT,
-    user_id UUID NOT NULL REFERENCES "user"(id)
+    user_id TEXT NOT NULL REFERENCES "user"(id)
 );
 
 CREATE TABLE order_offer (

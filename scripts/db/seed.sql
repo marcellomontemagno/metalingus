@@ -1,21 +1,18 @@
--- Sample data for local dev. Run with: pnpm db:seed
--- Creates a buyer and a seller (data owners; they cannot sign in) plus a handful
--- of inquiries and offers shaped so several offers exactly match an inquiry.
--- Note: this does not create an order -- create one from the broker UI to exercise
--- the matching flow.
+-- Sample data for local dev (run after pnpm db:bootstrap). Users now live in
+-- Better Auth's table, so we supply its required columns (text id, name,
+-- emailVerified, createdAt, updatedAt). The db:seed guard prevents re-runs.
 
-INSERT INTO "user" (email) VALUES ('buyer@example.com') ON CONFLICT (email) DO NOTHING;
-INSERT INTO "user" (email) VALUES ('seller@example.com') ON CONFLICT (email) DO NOTHING;
-
-INSERT INTO user_role (user_id, role_id)
-SELECT u.id, r.id FROM "user" u, role r
-WHERE u.email = 'buyer@example.com' AND r.name = 'buyer'
-ON CONFLICT DO NOTHING;
+INSERT INTO "user" (id, name, email, "emailVerified", "createdAt", "updatedAt")
+VALUES (gen_random_uuid()::text, 'Sample Buyer', 'buyer@example.com', true, now(), now());
+INSERT INTO "user" (id, name, email, "emailVerified", "createdAt", "updatedAt")
+VALUES (gen_random_uuid()::text, 'Sample Seller', 'seller@example.com', true, now(), now());
 
 INSERT INTO user_role (user_id, role_id)
 SELECT u.id, r.id FROM "user" u, role r
-WHERE u.email = 'seller@example.com' AND r.name = 'seller'
-ON CONFLICT DO NOTHING;
+WHERE u.email = 'buyer@example.com' AND r.name = 'buyer';
+INSERT INTO user_role (user_id, role_id)
+SELECT u.id, r.id FROM "user" u, role r
+WHERE u.email = 'seller@example.com' AND r.name = 'seller';
 
 -- Inquiries (owned by the buyer)
 INSERT INTO inquiry (bars_requested, latest_delivery_date, grade, shape, width, height, thickness, notes, user_id)
