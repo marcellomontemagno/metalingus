@@ -1,6 +1,6 @@
 ## 1. Phase 0 — Spike & decisions
 
-- [ ] 1.1 Spike Better Auth on the `@neondatabase/serverless` `Pool` in the app runtime (queries + sessions); confirm or pick a fallback dialect
+- [x] 1.1 Spike Better Auth on the `@neondatabase/serverless` `Pool` — **confirmed: `Pool` + `ws` (`neonConfig.webSocketConstructor`) connects to `neondb`**
 - [ ] 1.2 Finalize the org `kind` (buyer/seller/both) field shape — broker's home is decided (Better Auth admin plugin)
 - [ ] 1.3 Greenfield: rebuild the schema and re-seed sample data on Better Auth (no backfill); confirm a clean cutover
 
