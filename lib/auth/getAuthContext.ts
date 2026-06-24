@@ -18,5 +18,26 @@ export default async function getAuthContext(): Promise<AuthContext> {
     JOIN user_role ur ON ur.role_id = r.id
     WHERE ur.user_id = ${user.id}
   `;
-  return { user, roles: parseRows(roleSchema, roleRows) };
+  // The user's current Business (first membership) + their role in it; plus the
+  // platform role off the user. These replace the global roles in Steps 4–5.
+  const orgRows = await sql`
+    SELECT o.id, o.name, o.kind, m.role AS member_role
+    FROM member m JOIN organization o ON o.id = m."organizationId"
+    WHERE m."userId" = ${user.id} ORDER BY o.name LIMIT 1`;
+  const organization = orgRows[0]
+    ? {
+        id: orgRows[0].id as string,
+        name: orgRows[0].name as string,
+        kind: (orgRows[0].kind as string | null) ?? null,
+      }
+    : null;
+  const memberRole = (orgRows[0]?.member_role as string | undefined) ?? null;
+  const platformRole = user.platformRole ?? null;
+  return {
+    user,
+    roles: parseRows(roleSchema, roleRows),
+    organization,
+    memberRole,
+    platformRole,
+  };
 }

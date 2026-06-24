@@ -28,6 +28,13 @@ await pg.exec(`CREATE TABLE organization (
   metadata TEXT,
   kind TEXT
 );`);
+await pg.exec(`CREATE TABLE member (
+  id TEXT PRIMARY KEY,
+  "organizationId" TEXT NOT NULL,
+  "userId" TEXT NOT NULL,
+  role TEXT NOT NULL,
+  "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+);`);
 await pg.exec(readFileSync("scripts/db/schema.sql", "utf8")); // app tables (FK to user/org)
 
 function makeQuery(text: string, params: unknown[]) {
