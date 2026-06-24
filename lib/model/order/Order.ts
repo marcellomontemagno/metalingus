@@ -10,6 +10,7 @@ export const orderSchema = z.object({
   margin: z.coerce.number().min(0).nullable(),
   notes: z.string().nullable(),
   userId: z.uuid(),
+  organizationId: z.uuid().nullable().optional(),
 });
 
 type Order = z.infer<typeof orderSchema>;

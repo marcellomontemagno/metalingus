@@ -17,6 +17,7 @@ export const offerSchema = z.object({
   currency: currencySchema,
   notes: z.string().nullable(),
   userId: z.uuid(),
+  organizationId: z.uuid().nullable().optional(),
 });
 
 type Offer = z.infer<typeof offerSchema>;
