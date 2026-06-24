@@ -1,7 +1,11 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import getAuthContext from "@/lib/auth/getAuthContext";
-import { provisionBusiness } from "@/lib/provisionBusiness";
+import {
+  provisionBusiness,
+  provisionOperator,
+  type BusinessType,
+} from "@/lib/provisionBusiness";
 import { sql } from "@/lib/db/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,10 +20,19 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
+async function assertBroker() {
+  const { roles } = await getAuthContext();
+  if (!roles.some((r) => r.name === "broker")) throw new Error("Forbidden");
+}
+
+function emailState(requested: boolean, sent: boolean): string {
+  return requested ? (sent ? "sent" : "failed") : "none";
+}
+
 export default async function OperatorPage({
   searchParams,
 }: {
-  searchParams: Promise<{ provisioned?: string; error?: string }>;
+  searchParams: Promise<{ provisioned?: string; email?: string; error?: string }>;
 }) {
   const sp = await searchParams;
 
@@ -30,76 +43,136 @@ export default async function OperatorPage({
       (SELECT count(*)::int FROM member m WHERE m."organizationId" = o.id) AS members
     FROM organization o ORDER BY o.name`;
 
-  async function provision(formData: FormData) {
-    "use server";
-    const { roles } = await getAuthContext();
-    if (!roles.some((r) => r.name === "broker")) throw new Error("Forbidden");
+  const operators = await sql`
+    SELECT u.email, u.name FROM "user" u
+    JOIN user_role ur ON ur.user_id = u.id
+    JOIN role r ON r.id = ur.role_id
+    WHERE r.name = 'broker' ORDER BY u.email`;
 
+  async function provisionBiz(formData: FormData) {
+    "use server";
+    await assertBroker();
     const email = String(formData.get("email") ?? "").trim();
     const businessName = String(formData.get("businessName") ?? "").trim();
     const type = String(formData.get("type") ?? "");
+    const sendEmail = formData.get("sendEmail") === "on";
     if (!email || !businessName || !["buyer", "seller", "both"].includes(type)) {
-      redirect("/operator?error=" + encodeURIComponent("Missing or invalid fields"));
+      redirect("/operator?error=" + encodeURIComponent("Missing or invalid business fields"));
     }
+    let result;
     try {
-      await provisionBusiness({
-        email,
-        businessName,
-        type: type as "buyer" | "seller" | "both",
-      });
+      result = await provisionBusiness({ email, businessName, type: type as BusinessType, sendEmail });
     } catch (e) {
-      redirect(
-        "/operator?error=" +
-          encodeURIComponent(e instanceof Error ? e.message : "Provisioning failed"),
-      );
+      redirect("/operator?error=" + encodeURIComponent(e instanceof Error ? e.message : "Provisioning failed"));
     }
     revalidatePath("/operator");
-    redirect("/operator?provisioned=" + encodeURIComponent(businessName));
+    redirect(
+      `/operator?provisioned=${encodeURIComponent(businessName)}&email=${emailState(sendEmail, result.emailSent)}`,
+    );
+  }
+
+  async function provisionOp(formData: FormData) {
+    "use server";
+    await assertBroker();
+    const email = String(formData.get("email") ?? "").trim();
+    const sendEmail = formData.get("sendEmail") === "on";
+    if (!email) {
+      redirect("/operator?error=" + encodeURIComponent("Operator email is required"));
+    }
+    let result;
+    try {
+      result = await provisionOperator({ email, sendEmail });
+    } catch (e) {
+      redirect("/operator?error=" + encodeURIComponent(e instanceof Error ? e.message : "Provisioning failed"));
+    }
+    revalidatePath("/operator");
+    redirect(
+      `/operator?provisioned=${encodeURIComponent(email)}&email=${emailState(sendEmail, result.emailSent)}`,
+    );
   }
 
   return (
     <main className="space-y-6 p-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Provision a Business</CardTitle>
-        </CardHeader>
-        <CardContent>
+      {(sp.provisioned || sp.error) && (
+        <div className="text-sm">
           {sp.provisioned && (
-            <p className="mb-3 text-sm text-green-600">
-              Provisioned “{sp.provisioned}”. The owner can now sign in.
+            <p className="text-green-600">
+              Provisioned “{sp.provisioned}”.
+              {sp.email === "sent" && " A sign-in email was sent."}
+              {sp.email === "failed" && " (Couldn't send the email — verify the Resend domain.)"}
             </p>
           )}
-          {sp.error && <p className="mb-3 text-sm text-destructive">{sp.error}</p>}
-          <form action={provision} className="max-w-md">
-            <FieldGroup>
-              <Field>
-                <FieldLabel htmlFor="email">Owner email</FieldLabel>
-                <Input id="email" name="email" type="email" placeholder="owner@business.com" required />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="businessName">Business name</FieldLabel>
-                <Input id="businessName" name="businessName" placeholder="Acme Steel" required />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="type">Type</FieldLabel>
-                <select
-                  id="type"
-                  name="type"
-                  defaultValue="buyer"
-                  className="border-input dark:bg-input/30 h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-xs"
-                >
-                  <option value="buyer">Buyer</option>
-                  <option value="seller">Seller</option>
-                  <option value="both">Both</option>
-                </select>
-              </Field>
-              <Button type="submit" className="w-fit">
-                Provision business
-              </Button>
-            </FieldGroup>
-          </form>
-        </CardContent>
-      </Card>
+          {sp.error && <p className="text-destructive">{sp.error}</p>}
+        </div>
+      )}
+
+      <div className="grid gap-6 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Provision a Business</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form action={provisionBiz}>
+              <FieldGroup>
+                <Field>
+                  <FieldLabel htmlFor="biz-email">Owner email</FieldLabel>
+                  <Input id="biz-email" name="email" type="email" placeholder="owner@business.com" required />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="biz-name">Business name</FieldLabel>
+                  <Input id="biz-name" name="businessName" placeholder="Acme Steel" required />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="biz-type">Type</FieldLabel>
+                  <select
+                    id="biz-type"
+                    name="type"
+                    defaultValue="buyer"
+                    className="border-input dark:bg-input/30 h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-xs"
+                  >
+                    <option value="buyer">Buyer</option>
+                    <option value="seller">Seller</option>
+                    <option value="both">Both</option>
+                  </select>
+                </Field>
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" name="sendEmail" className="size-4" />
+                  Send sign-in email
+                </label>
+                <Button type="submit" className="w-fit">
+                  Provision business
+                </Button>
+              </FieldGroup>
+            </form>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Provision an Operator</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form action={provisionOp}>
+              <FieldGroup>
+                <Field>
+                  <FieldLabel htmlFor="op-email">Operator email</FieldLabel>
+                  <Input id="op-email" name="email" type="email" placeholder="ops@metalingus.com" required />
+                </Field>
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" name="sendEmail" className="size-4" />
+                  Send sign-in email
+                </label>
+                <Button type="submit" className="w-fit">
+                  Provision operator
+                </Button>
+              </FieldGroup>
+            </form>
+            <p className="mt-3 text-xs text-muted-foreground">
+              Operators hold the platform (broker) role and have no Business.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
 
       <Card>
         <CardHeader>
@@ -126,6 +199,36 @@ export default async function OperatorPage({
                     </TableCell>
                     <TableCell data-label="Members" className="text-right">
                       {b.members}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Operators</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {operators.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No operators yet.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Name</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {operators.map((o) => (
+                  <TableRow key={o.email}>
+                    <TableCell data-label="Email">{o.email}</TableCell>
+                    <TableCell data-label="Name" className="text-muted-foreground">
+                      {o.name ?? "—"}
                     </TableCell>
                   </TableRow>
                 ))}
