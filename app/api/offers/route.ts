@@ -65,9 +65,9 @@ export async function GET() {
 
 export async function POST(request: Request) {
   const ctx = await getAuthContext();
-  const { orgId, isSeller, canManage } = access(ctx);
-  // Only a seller Business's owner/admin can post offers.
-  if (!orgId || !isSeller || !canManage)
+  const { orgId, isSeller } = access(ctx);
+  // Any member of a seller Business can post offers.
+  if (!orgId || !isSeller)
     return new Response("Forbidden", { status: 403 });
   const userId = ctx.user.id;
   let fields: Offer;

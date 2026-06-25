@@ -18,15 +18,10 @@ async function createOrFindUser(email: string, contactName?: string): Promise<st
   return rows[0].id as string;
 }
 
-async function grantRole(userId: string, role: string): Promise<void> {
-  await sql`INSERT INTO user_role (user_id, role_id) SELECT ${userId}, id FROM role WHERE name = ${role} ON CONFLICT DO NOTHING`;
-}
-
 // Provision a buyer/seller Business: allowlist the owner, create the Business
-// (owner membership), and apply the buyer/seller designation (global role today —
-// the Phase-1 mapping; moves to the organization `kind` field in Phase 3). Shared
-// by the operator panel and the `provision-business` CLI. (The optional welcome
-// email is sent by the caller as a one-click magic link.)
+// (owner membership), and set its business type (`kind`). Shared by the operator
+// panel and the `provision-business` CLI. (The optional welcome email is sent by
+// the caller as a one-click magic link.)
 export async function provisionBusiness(opts: {
   email: string;
   businessName: string;
@@ -37,14 +32,16 @@ export async function provisionBusiness(opts: {
   const userId = await createOrFindUser(email, contactName);
 
   const orgSlug = slugify(businessName);
-  await auth.api.createOrganization({ body: { name: businessName, slug: orgSlug, userId } });
-
-  for (const r of type === "both" ? ["buyer", "seller"] : [type]) await grantRole(userId, r);
+  const res: any = await auth.api.createOrganization({
+    body: { name: businessName, slug: orgSlug, userId },
+  });
+  const orgId = res?.id ?? res?.organization?.id;
+  if (orgId) await sql`UPDATE organization SET kind = ${type} WHERE id = ${orgId}`;
 
   return { userId, orgSlug };
 }
 
-// Provision a platform operator: allowlist the user and grant the broker role.
+// Provision a platform operator: allowlist the user and set the platform role.
 // Operators are platform-level — no Business.
 export async function provisionOperator(opts: {
   email: string;
@@ -53,6 +50,5 @@ export async function provisionOperator(opts: {
   const { email, contactName } = opts;
   const userId = await createOrFindUser(email, contactName);
   await sql`UPDATE "user" SET "platformRole" = 'operator' WHERE id = ${userId}`;
-  await grantRole(userId, "broker"); // additive: route handlers still read this until Step 4
   return { userId };
 }

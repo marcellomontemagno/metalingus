@@ -1,18 +1,19 @@
 // Seed the org layer: one Business (organization) per buyer/seller user — with its
-// business-type `kind` derived from the user's roles — then link that user's sample
-// entities to the Business. Skips platform operators (broker). Runs in db:setup
-// after the base seed. (Greenfield only — no production backfill.)
+// business-type `kind` — then link that user's sample entities to the Business.
+// Skips platform operators. Runs in db:setup after the base seed. (Greenfield only.)
 import { auth } from "../../lib/auth.ts";
 import { neon } from "@neondatabase/serverless";
 
 const sql = neon(process.env.POSTGRES_URL);
 
-// Businesses are for buyers/sellers — skip platform operators (broker role).
+// Business type for the dev sample users (the base seed creates these).
+const KIND = { "buyer@example.com": "buyer", "seller@example.com": "seller" };
+
+// Businesses are for buyers/sellers — skip platform operators.
 const users = await sql.query(
   'SELECT u.id, u.email, u.name FROM "user" u ' +
     'WHERE NOT EXISTS (SELECT 1 FROM member m WHERE m."userId" = u.id) ' +
-    'AND NOT EXISTS (SELECT 1 FROM user_role ur JOIN role r ON r.id = ur.role_id ' +
-    "WHERE ur.user_id = u.id AND r.name = 'broker') " +
+    `AND u."platformRole" IS DISTINCT FROM 'operator' ` +
     'ORDER BY u.email',
 );
 
@@ -23,33 +24,18 @@ for (const u of users) {
   const res = await auth.api.createOrganization({ body: { name, slug, userId: u.id } });
   const org = res?.name ? res : res?.organization;
 
-  // Business type (kind) from the user's global roles — the Phase-1 mapping moving
-  // onto the org. buyer+seller -> both.
-  const roleRows = await sql.query(
-    "SELECT r.name FROM user_role ur JOIN role r ON r.id = ur.role_id WHERE ur.user_id = $1",
-    [u.id],
-  );
-  const names = roleRows.map((r) => r.name);
-  const kind =
-    names.includes("buyer") && names.includes("seller")
-      ? "both"
-      : names.includes("buyer")
-        ? "buyer"
-        : names.includes("seller")
-          ? "seller"
-          : null;
-  if (kind && org?.id) {
+  const kind = KIND[u.email] ?? "both";
+  if (org?.id) {
     await sql.query("UPDATE organization SET kind = $1 WHERE id = $2", [kind, org.id]);
   }
 
   console.log(
-    `provisioned Business "${org?.name ?? name}" (${org?.slug ?? slug}, kind=${kind ?? "—"}) — owner ${u.email}`,
+    `provisioned Business "${org?.name ?? name}" (${org?.slug ?? slug}, kind=${kind}) — owner ${u.email}`,
   );
 }
 if (users.length === 0) console.log("All users already have a Business — nothing to do.");
 
-// Link each sample entity to its owner's Business (the entity's user_id is the
-// owner member). Idempotent; safe to re-run.
+// Link each sample entity to its owner's Business (the owner membership). Idempotent.
 await sql.query(
   `UPDATE inquiry i SET organization_id = m."organizationId" FROM member m WHERE m."userId" = i.user_id AND m.role = 'owner'`,
 );

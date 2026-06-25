@@ -8,21 +8,19 @@ export default function SetAuthContext({
   isOperator,
   isBuyer,
   isSeller,
-  canManage,
   children,
 }: {
   userId: string;
   isOperator: boolean;
   isBuyer: boolean;
   isSeller: boolean;
-  canManage: boolean;
   children: React.ReactNode;
 }) {
   const auth = useStore((s) => s.authContext);
 
   useEffect(() => {
-    setStore({ authContext: { userId, isOperator, isBuyer, isSeller, canManage } });
-  }, [userId, isOperator, isBuyer, isSeller, canManage]);
+    setStore({ authContext: { userId, isOperator, isBuyer, isSeller } });
+  }, [userId, isOperator, isBuyer, isSeller]);
 
   if (!auth) return null;
   return <>{children}</>;

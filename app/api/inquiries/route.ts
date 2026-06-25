@@ -41,9 +41,9 @@ export async function GET() {
 
 export async function POST(request: Request) {
   const ctx = await getAuthContext();
-  const { orgId, isBuyer, canManage } = access(ctx);
-  // Only a buyer Business's owner/admin can open inquiries.
-  if (!orgId || !isBuyer || !canManage)
+  const { orgId, isBuyer } = access(ctx);
+  // Any member of a buyer Business can open inquiries.
+  if (!orgId || !isBuyer)
     return new Response("Forbidden", { status: 403 });
   const userId = ctx.user.id;
   let fields: Inquiry;
