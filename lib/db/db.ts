@@ -8,17 +8,12 @@ import * as schema from "./schema";
 neonConfig.webSocketConstructor = ws;
 
 const url = process.env.POSTGRES_URL!;
-const neonSql = neon(url);
-
-// Legacy raw-SQL template — kept during the dual-run migration; removed in Phase 6
-// once every handler is on Drizzle.
-export const sql = neonSql;
 
 // Drizzle over Neon HTTP — stateless, low-latency; the default for handler
 // reads/writes. No interactive transactions — use `txDb` for those.
-export const db = drizzleHttp(neonSql, { schema });
+export const db = drizzleHttp(neon(url), { schema });
 
 // Drizzle over the WebSocket Pool — interactive transactions (order creation)
-// and Better Auth's adapter (Phase 3).
+// and Better Auth's adapter.
 export const pool = new Pool({ connectionString: url });
 export const txDb = drizzleWs(pool, { schema });

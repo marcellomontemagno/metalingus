@@ -1,5 +1,7 @@
+import { eq } from "drizzle-orm";
 import { auth } from "@/lib/auth";
-import { sql } from "@/lib/db/db";
+import { db } from "@/lib/db/db";
+import { user, organization } from "@/lib/db/schema";
 
 export type BusinessType = "buyer" | "seller" | "both";
 
@@ -9,13 +11,19 @@ function slugify(s: string): string {
 
 // Allowlist a user (idempotent on email), returning their id.
 async function createOrFindUser(email: string, contactName?: string): Promise<string> {
-  const existing = await sql`SELECT id FROM "user" WHERE email = ${email}`;
-  if (existing[0]?.id) return existing[0].id as string;
-  const rows = await sql`
-    INSERT INTO "user" (id, name, email, "emailVerified", "createdAt", "updatedAt")
-    VALUES (${crypto.randomUUID()}, ${contactName ?? email.split("@")[0]}, ${email}, true, now(), now())
-    RETURNING id`;
-  return rows[0].id as string;
+  const existing = await db.select({ id: user.id }).from(user).where(eq(user.email, email));
+  if (existing[0]?.id) return existing[0].id;
+  const [created] = await db
+    .insert(user)
+    .values({
+      id: crypto.randomUUID(),
+      name: contactName ?? email.split("@")[0],
+      email,
+      emailVerified: true,
+      // createdAt/updatedAt default to now() at the DB.
+    })
+    .returning({ id: user.id });
+  return created.id;
 }
 
 // Provision a buyer/seller Business: allowlist the owner, create the Business
@@ -36,7 +44,8 @@ export async function provisionBusiness(opts: {
     body: { name: businessName, slug: orgSlug, userId },
   });
   const orgId = res?.id ?? res?.organization?.id;
-  if (orgId) await sql`UPDATE organization SET kind = ${type} WHERE id = ${orgId}`;
+  if (orgId)
+    await db.update(organization).set({ kind: type }).where(eq(organization.id, orgId));
 
   return { userId, orgSlug };
 }
@@ -49,6 +58,6 @@ export async function provisionOperator(opts: {
 }): Promise<{ userId: string }> {
   const { email, contactName } = opts;
   const userId = await createOrFindUser(email, contactName);
-  await sql`UPDATE "user" SET "platformRole" = 'operator' WHERE id = ${userId}`;
+  await db.update(user).set({ platformRole: "operator" }).where(eq(user.id, userId));
   return { userId };
 }
