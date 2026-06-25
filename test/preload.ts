@@ -10,7 +10,24 @@ process.env.POSTGRES_URL ||= "postgresql://test:test@localhost:5432/test";
 
 mock.module("@/lib/db/db", () => ({ sql }));
 // getAuthContext resolves identity via @/lib/auth's getSession + next/headers.
+// createOrganization is a minimal stand-in for Better Auth's: it writes the org +
+// owner membership to pglite so provisionBusiness is exercisable in-harness.
 mock.module("@/lib/auth", () => ({
-  auth: { api: { getSession: async () => getSession() } },
+  auth: {
+    api: {
+      getSession: async () => getSession(),
+      createOrganization: async ({
+        body,
+      }: {
+        body: { name: string; slug: string; userId: string };
+      }) => {
+        const id = crypto.randomUUID();
+        await sql`INSERT INTO organization (id, name, slug) VALUES (${id}, ${body.name}, ${body.slug})`;
+        await sql`INSERT INTO member (id, "organizationId", "userId", role)
+          VALUES (${crypto.randomUUID()}, ${id}, ${body.userId}, 'owner')`;
+        return { id, name: body.name, slug: body.slug };
+      },
+    },
+  },
 }));
 mock.module("next/headers", () => ({ headers: async () => new Headers() }));

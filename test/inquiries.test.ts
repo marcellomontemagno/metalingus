@@ -79,6 +79,14 @@ describe("inquiries: edit & delete", () => {
     expect(res.status).toBe(404);
   });
 
+  test("cannot edit an inquiry from another org (404)", async () => {
+    const a = await makeUser("a@t", ["buyer"]);
+    const id = await seedInquiry(a);
+    await login("b@t", ["buyer"]); // different Business — the org-scoped UPDATE matches nothing
+    const res = await PATCH(req("PATCH", anInquiry({ id, userId: a, barsRequested: 999 })), params(id));
+    expect(res.status).toBe(404);
+  });
+
   test("cannot edit or delete an inquiry that is part of an order (frozen)", async () => {
     const broker = await makeUser("brk@t", ["broker"]);
     const seller = await makeUser("sel@t", ["seller"]);

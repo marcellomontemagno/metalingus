@@ -92,7 +92,7 @@ export async function makeUser(email: string, roles: string[] = []): Promise<str
 }
 
 // The org a user owns/belongs to — used to stamp seeded entities with their org.
-async function orgOf(userId: string): Promise<string | null> {
+export async function orgOf(userId: string): Promise<string | null> {
   const rows = await sql`SELECT "organizationId" AS org FROM member WHERE "userId" = ${userId} LIMIT 1`;
   return (rows[0]?.org as string) ?? null;
 }
