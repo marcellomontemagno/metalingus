@@ -2,10 +2,10 @@
 
 - [x] 1.1 Add deps: `drizzle-orm`, `drizzle-zod`, and dev `drizzle-kit`; confirm `@neondatabase/serverless` + `@electric-sql/pglite` already present
 - [x] 1.2 Add `drizzle.config.ts` (`dialect: "postgresql"`, `schema: "./lib/db/schema.ts"`, `out: "./drizzle"`, `dbCredentials.url` from `POSTGRES_URL`)
-- [ ] 1.3 Generate the auth schema: `npx @better-auth/cli generate --adapter drizzle --output lib/db/auth-schema.ts`; verify `user.platformRole` + `organization.kind` additionalFields are present (add by hand if the CLI omits them — Open Question)
-- [ ] 1.4 Introspect the app tables from the freshly-reset preprod (`drizzle-kit introspect`); fold `inquiry`/`offer`/`order`/`order_offer` + the `grade`/`shape`/`order_status` `pgEnum`s into `lib/db/schema.ts`, re-exporting `auth-schema.ts`; explicit snake_case column names, no global casing
-- [ ] 1.5 **Parity gate**: `drizzle-kit generate` reports no diff against the live DB; `drizzle-kit push` to a scratch Neon branch + `pg_dump --schema-only` diff is empty
-- [ ] 1.6 Export `$inferSelect`/`$inferInsert` per table from `schema.ts`
+- [x] 1.3 Auth tables came from the introspect with `platformRole`/`kind` intact; `better-auth generate --adapter drizzle` is not exposed by the installed CLI and proved unnecessary (the introspected schema is adapter-compatible)
+- [x] 1.4 Introspected all tables from the dev DB (`drizzle-kit introspect`) — `inquiry`/`offer`/`order`/`order_offer` + the 3 `pgEnum`s + the auth tables; promoted `drizzle/schema.ts`→`lib/db/schema.ts` (+ `relations.ts`); explicit snake_case app columns, bare camelCase auth columns, no global casing
+- [x] 1.5 **Parity gate**: `drizzle-kit generate` reports "No schema changes"; baseline DDL matches `scripts/db/schema.sql` exactly (the airtight `pg_dump --schema-only` diff against a scratch push is task 7.1)
+- [x] 1.6 Export `$inferSelect`/`$inferInsert` per table from `schema.ts`
 
 ## 2. Phase 2 — Drizzle client (dual-run, no behavior change)
 

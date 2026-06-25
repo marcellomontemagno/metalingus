@@ -227,3 +227,16 @@ export const orderOffer = pgTable("order_offer", {
 		}),
 	unique("order_offer_order_id_offer_id_key").on(table.orderId, table.offerId),
 ]);
+
+// ── Inferred row + insert types — the client/server type-sharing surface.
+// Derived from the tables above, so they cannot drift from the schema.
+export type Inquiry = typeof inquiry.$inferSelect;
+export type NewInquiry = typeof inquiry.$inferInsert;
+export type Offer = typeof offer.$inferSelect;
+export type NewOffer = typeof offer.$inferInsert;
+export type Order = typeof order.$inferSelect;
+export type NewOrder = typeof order.$inferInsert;
+export type OrderOffer = typeof orderOffer.$inferSelect;
+export type User = typeof user.$inferSelect;
+export type Organization = typeof organization.$inferSelect;
+export type Member = typeof member.$inferSelect;

@@ -21,7 +21,7 @@ The data layer is raw SQL over `@neondatabase/serverless`: `lib/db/db.ts` export
 
 **1. Introspect for parity, not hand-authoring.** `drizzle-kit introspect` reverse-engineers the live (freshly-reset) database into `schema.ts` + a baseline migration, so parity is by construction. *Alternative:* hand-author + `drizzle-kit generate` then diff — more control, but risks silent drift from the real tables. *Gate:* `drizzle-kit generate` must report **no changes** against the live DB before this change is considered correct.
 
-**2. Better Auth via the Drizzle adapter — unified schema + migrations.** Generate the auth tables with `@better-auth/cli generate --adapter drizzle` (it reads `lib/auth.ts`, so `platformRole`/`kind` come along), wire `database: drizzleAdapter(db, { provider: "pg" })`, and let `drizzle-kit` own all migrations. This is the deferred alternative from `migrate-to-better-auth` #1, now committed. *Trade-off:* the auth schema is generated rather than introspected — reconciled against the live tables by the parity gate (Decision 1).
+**2. One introspected schema, consumed by Better Auth's Drizzle adapter.** The introspect captures *all* tables — including the auth tables with `platformRole`/`kind` intact — into one schema that is both parity-exact and adapter-compatible (the adapter maps by table/column name). Phase 3 wires `database: drizzleAdapter(db, { provider: "pg", schema })` and `drizzle-kit` owns all migrations. This is the deferred alternative from `migrate-to-better-auth` #1, now committed. *Note (apply):* `@better-auth/cli generate --adapter drizzle` is not exposed by the installed CLI and proved unnecessary — introspect-everything already produced the adapter-compatible auth schema.
 
 **3. Keep the `neon-http` / `neon-serverless` driver split.** `neon-http` for stateless handler reads/writes (low latency, no WebSocket on Vercel); `neon-serverless` `Pool` for the order-creation transaction and Better Auth (interactive transactions). Both import the same `schema`. *Alternative:* unify on the `Pool` (one instance, full transactions everywhere) — rejected for the per-request WebSocket overhead on the read paths.
 
@@ -58,5 +58,5 @@ Rollback: Phases 1–2 are purely additive. From Phase 3 on, each phase is a sma
 
 ## Open Questions
 
-- Does `@better-auth/cli generate --adapter drizzle` emit the `platformRole`/`kind` additionalFields exactly, or must they be added to the generated schema by hand? (Resolve in Phase 1.)
+- ~~Does `@better-auth/cli generate` emit the additionalFields exactly?~~ **Resolved (Phase 1):** the introspect captured `platformRole`/`kind` directly — no generate step needed.
 - Keep `numeric` as string + coerce (default), or introduce a number-mode column type as a follow-up? (Defaulting to string + coerce — no behavior change.)
