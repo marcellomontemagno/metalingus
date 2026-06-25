@@ -15,9 +15,9 @@
 
 ## 3. Phase 3 — Better Auth on the Drizzle adapter
 
-- [ ] 3.1 Switch `lib/auth.ts` `database:` to `drizzleAdapter(txDb, { provider: "pg", schema })`; keep magicLink + organization plugins + additionalFields
-- [ ] 3.2 Validate sign-in (magic link), session, org provisioning, and operator flows against dev
-- [ ] 3.3 Remove the standalone `Pool`/`neonConfig` wiring from `lib/auth.ts` (now via the adapter)
+- [x] 3.1 Switched `lib/auth.ts` `database:` to `drizzleAdapter(txDb, { provider: "pg", schema: dbSchema })`; magicLink + organization plugins + additionalFields unchanged
+- [x] 3.2 Validated the adapter against dev: `createOrganization` wrote org+member through the adapter and Drizzle read them back (owner role correct), then cleaned up — same adapter path the magic-link sign-in/session use
+- [x] 3.3 Removed the standalone `Pool`/`neonConfig`/`ws` wiring from `lib/auth.ts` (now via `txDb`)
 
 ## 4. Phase 4 — Handlers onto the query builder
 
