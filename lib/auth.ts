@@ -3,6 +3,7 @@ import { magicLink, organization } from "better-auth/plugins";
 import { Pool, neonConfig } from "@neondatabase/serverless";
 import ws from "ws";
 import { Resend } from "resend";
+import { sql } from "@/lib/db/db";
 
 // Neon's Pool speaks WebSocket; give it a constructor in Node (local + Vercel).
 neonConfig.webSocketConstructor = ws;
@@ -27,13 +28,35 @@ export const auth = betterAuth({
     magicLink({
       // Invite-only: never auto-provision an unknown email.
       disableSignUp: true,
-      // One sender for every magic link, framed by the callbackURL. Operator/
-      // business provisioning sends a one-click welcome (callbackURL `/?welcome`).
+      // Single sender for every magic link. Sign-in, org invites, and
+      // operator/business provisioning all flow through here as one-click links;
+      // we frame the message from the callbackURL embedded in the link.
       sendMagicLink: async ({ email, url }) => {
         let subject = "Your metalingus sign-in link";
         let intro = "Sign in to metalingus:";
         try {
-          if ((new URL(url).searchParams.get("callbackURL") ?? "").includes("welcome")) {
+          const cb = new URL(url).searchParams.get("callbackURL") ?? "";
+          if (cb.startsWith("/accept-invite")) {
+            subject = "You've been invited to a Business on metalingus";
+            intro =
+              "You've been invited to join a Business on metalingus. Click to sign in and accept:";
+            // Enrich with the org + inviter, looked up from the invitation id.
+            const id = new URL(cb, "http://localhost").searchParams.get("id");
+            if (id) {
+              const rows = await sql`
+                SELECT o.name AS org, COALESCE(u.name, u.email) AS inviter
+                FROM invitation i
+                JOIN organization o ON o.id = i."organizationId"
+                LEFT JOIN "user" u ON u.id = i."inviterId"
+                WHERE i.id = ${id}`;
+              if (rows[0]) {
+                const org = rows[0].org as string;
+                const inviter = (rows[0].inviter as string) ?? "Someone";
+                subject = `You've been invited to join ${org} on metalingus`;
+                intro = `${inviter} invited you to join ${org}. Click to sign in and accept:`;
+              }
+            }
+          } else if (cb.includes("welcome")) {
             subject = "You've been added to metalingus";
             intro = "An account was created for you on metalingus. Click to sign in:";
           }
@@ -46,10 +69,9 @@ export const auth = betterAuth({
         });
       },
     }),
-    // Invitation create/accept (the Members UI + `/accept-invite`) is parked on
-    // the members-management branch — no sendInvitationEmail here yet. Phase 3:
-    // `kind` (buyer/seller/both) is the org's business type, which replaces the
-    // global buyer/seller roles.
+    // `kind` (buyer/seller/both) is the org's business type. No sendInvitationEmail —
+    // invites are delivered as one-click magic links from the invite action
+    // (callbackURL -> /accept-invite?id=...), framed by sendMagicLink above.
     organization({
       schema: {
         organization: { additionalFields: { kind: { type: "string", required: false } } },

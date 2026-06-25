@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Inbox, Package, Shield, Tag, type LucideIcon } from "lucide-react";
+import { Inbox, Package, Shield, Tag, Users, type LucideIcon } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -23,6 +23,7 @@ const icons: Record<string, LucideIcon> = {
   tag: Tag,
   package: Package,
   shield: Shield,
+  users: Users,
 };
 
 type NavItem = {

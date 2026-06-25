@@ -36,6 +36,7 @@ export default async function AppShell({
     ...(isOperator || isBuyer || isSeller
       ? [{ href: "/orders", label: "Orders", icon: "package" }]
       : []),
+    ...(currentOrg ? [{ href: "/members", label: "Members", icon: "users" }] : []),
     ...(isOperator ? [{ href: "/operator", label: "Operator", icon: "shield" }] : []),
   ];
 
