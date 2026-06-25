@@ -1,6 +1,3 @@
--- Current sql file was generated after introspecting the database
--- If you want to run this migration please uncomment this code before executing migrations
-/*
 CREATE TYPE "public"."grade" AS ENUM('S235JR', 'DX51');--> statement-breakpoint
 CREATE TYPE "public"."order_status" AS ENUM('MATCHED', 'APPROVED', 'PAID', 'DISPATCHED', 'DELIVERED', 'CANCELLED');--> statement-breakpoint
 CREATE TYPE "public"."shape" AS ENUM('SQUARE', 'RECTANGULAR', 'ROUND');--> statement-breakpoint
@@ -155,4 +152,3 @@ CREATE INDEX "verification_identifier_idx" ON "verification" USING btree ("ident
 CREATE UNIQUE INDEX "organization_slug_uidx" ON "organization" USING btree ("slug" text_ops);--> statement-breakpoint
 CREATE INDEX "invitation_email_idx" ON "invitation" USING btree ("email" text_ops);--> statement-breakpoint
 CREATE INDEX "invitation_organizationId_idx" ON "invitation" USING btree ("organizationId" text_ops);
-*/

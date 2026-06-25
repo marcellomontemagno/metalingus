@@ -22,9 +22,9 @@ mock.module("@/lib/auth", () => ({
         body: { name: string; slug: string; userId: string };
       }) => {
         const id = crypto.randomUUID();
-        await sql`INSERT INTO organization (id, name, slug) VALUES (${id}, ${body.name}, ${body.slug})`;
-        await sql`INSERT INTO member (id, "organizationId", "userId", role)
-          VALUES (${crypto.randomUUID()}, ${id}, ${body.userId}, 'owner')`;
+        await sql`INSERT INTO organization (id, name, slug, "createdAt") VALUES (${id}, ${body.name}, ${body.slug}, now())`;
+        await sql`INSERT INTO member (id, "organizationId", "userId", role, "createdAt")
+          VALUES (${crypto.randomUUID()}, ${id}, ${body.userId}, 'owner', now())`;
         return { id, name: body.name, slug: body.slug };
       },
     },

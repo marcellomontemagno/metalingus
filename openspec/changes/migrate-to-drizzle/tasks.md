@@ -34,9 +34,9 @@
 
 ## 6. Phase 6 — Retire the old layer + harness
 
-- [ ] 6.1 Remove the old `neon()` `sql` export and any remaining raw-SQL usage
-- [ ] 6.2 Replace `db:auth-migrate` + `db:bootstrap` with `drizzle-kit migrate`; update `db:setup`/`db:reset`; keep `db:seed`/`db:seed-orgs`
-- [ ] 6.3 Move `test/helpers/db.ts` to `drizzle-orm/pglite` driven by `schema.ts` (drop the hand-written `user`/`organization`/`member` tables)
+- [x] 6.1 Ported the last `sql` consumers (`lib/provisioning.ts`, operator panel, `AppShell`) to `db`; removed the `sql` export from `lib/db/db.ts`. The app is fully on Drizzle (the `scripts/db/*` keep their own `neon()` client); tsc 0, 37 tests green
+- [x] 6.2 Swapped `db:auth-migrate` + `db:bootstrap` → `db:migrate` (`drizzle-kit migrate`) + `db:generate`; `db:setup` = migrate + seed + seed-orgs; `drizzle.config.ts` self-loads `.env.local` (inline override still wins); removed `bootstrap.mjs` + `schema.sql`; uncommented the baseline `0000` so it's apply-able to fresh DBs. tsc 0, 37 green — end-to-end `db:reset` on a live DB is the 7.1 verification
+- [x] 6.3 Harness builds pglite from the (uncommented) Drizzle baseline migration, split per statement, instead of hand-written tables + `schema.sql` — single schema source. Surfaced + fixed a real fidelity gap: `organization`/`member` `createdAt` is `NOT NULL` no-default (better-auth sets it), which the hand-written tables had masked. 37 tests green
 - [ ] 6.4 Update setup docs (README + `openspec/project.md`) for the Drizzle workflow
 
 ## 7. Verification
