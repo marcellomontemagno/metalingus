@@ -11,8 +11,8 @@ type Params = { params: Promise<{ id: string }> };
 
 export async function PATCH(request: Request, { params }: Params) {
   const ctx = await getAuthContext();
-  const { orgId, isSeller, canManage } = access(ctx);
-  if (!orgId || !isSeller || !canManage)
+  const { orgId, isSeller } = access(ctx);
+  if (!orgId || !isSeller)
     return new Response("Forbidden", { status: 403 });
   const { id } = await params;
   let fields: Offer;
@@ -44,8 +44,8 @@ export async function PATCH(request: Request, { params }: Params) {
 
 export async function DELETE(_request: Request, { params }: Params) {
   const ctx = await getAuthContext();
-  const { orgId, isSeller, canManage } = access(ctx);
-  if (!orgId || !isSeller || !canManage)
+  const { orgId, isSeller } = access(ctx);
+  if (!orgId || !isSeller)
     return new Response("Forbidden", { status: 403 });
   const { id } = await params;
   const linked = await sql`SELECT 1 FROM order_offer WHERE offer_id = ${id} LIMIT 1`;

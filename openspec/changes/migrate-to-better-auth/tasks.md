@@ -30,10 +30,10 @@
 - [x] 4.1 Added `organization_id` to `inquiry`/`offer`/`order` (nullable, additive); `seed-orgs` links each entity to its owner's Business. No backfill (greenfield reset); `created_by` folds into the Step-5 `user_id`→`created_by` rename
 - [x] 4.2 Added `kind` (buyer/seller/both) to `organization` via the plugin's `additionalFields`; `seed-orgs` derives it from the user's roles. No backfill
 - [x] 4.3 Modeled the platform role as a `platformRole` user field (`operator`), set by `provisionOperator` — lighter than the admin plugin (decision #2 revisited). Additive: the global `broker` role stays until Step 4/4.7
-- [x] 4.4 All 6 handlers org-scoped via `access(ctx)`: visibility by `organization_id`, writes gated by `kind` + owner/admin `memberRole`, orders operator-only; broker-sees-all + margin privacy preserved; ownership stamped server-side. Harness reworked (roles→org/platformRole); tsc 0, 28 tests pass
-- [x] 4.5 `getAuthContext` returns `{ user, roles, organization, memberRole, platformRole }`; client `useAuthContext` carries the derived `access()` booleans (`isOperator/isBuyer/isSeller/canManage`) seeded via `SetAuthContext`. Layouts/AppShell/components all read these
+- [x] 4.4 All 6 handlers org-scoped via `access(ctx)`: visibility by `organization_id`, writes gated by `kind`, orders operator-only; broker-sees-all + margin privacy preserved; ownership stamped server-side. Harness reworked (roles→org/platformRole); tsc 0, 28 tests pass
+- [x] 4.5 `getAuthContext` returns `{ user, organization, platformRole }`; client `useAuthContext` carries the derived `access()` booleans (`isOperator/isBuyer/isSeller`) seeded via `SetAuthContext`. Layouts/AppShell/components all read these
 - [x] 4.6 Spec visibility scenarios are org-scoped (authored for this change); tests updated — harness maps roles→org/platformRole, ownership test reframed. 28 pass. (Member-role-gating scenarios await multi-member, parked on `members-management`)
-- [ ] 4.7 Drop `role` and `user_role`
+- [x] 4.7 Dropped `role`/`user_role` (schema, seed, harness, `getAuthContext`) **and** the member-role gate (`canManage`/`memberRole`) per the lean-branch decision — any member of a Business may act; member roles return with `members-management`. `provisionBusiness` now sets `kind` directly (panel gap fixed); `seed-orgs` keys `kind` off an explicit map, excludes operators via `platformRole`. Greenfield `db:reset` verified; tsc 0, 28 tests pass
 
 ## 5. Verification
 

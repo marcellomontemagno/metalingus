@@ -19,7 +19,7 @@ export default async function AppShell({
 }>) {
   const ctx = await getAuthContext();
   const { user } = ctx;
-  const { isOperator, isBuyer, isSeller, canManage } = access(ctx);
+  const { isOperator, isBuyer, isSeller } = access(ctx);
 
   // Current Business to surface in the sidebar (first membership for now; the
   // deferred switcher will let multi-org users choose the active one).
@@ -52,7 +52,6 @@ export default async function AppShell({
         isOperator={isOperator}
         isBuyer={isBuyer}
         isSeller={isSeller}
-        canManage={canManage}
       >
         <AppSidebar
           items={items}

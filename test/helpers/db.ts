@@ -65,21 +65,19 @@ export const sql: any = Object.assign(
   },
 );
 
-// Clear all data between tests; keep the seeded role rows.
+// Clear all data between tests.
 export async function reset() {
   await pg.exec(
-    `TRUNCATE order_offer, "order", user_role, offer, inquiry, member, organization, "user" RESTART IDENTITY CASCADE;`,
+    `TRUNCATE order_offer, "order", offer, inquiry, member, organization, "user" RESTART IDENTITY CASCADE;`,
   );
 }
 
-// Create a Better Auth-shaped user. `roles` is the legacy buyer/seller/broker
-// designation, mapped onto Phase-3 structure: buyer/seller → owner of a Business
-// of that `kind`; broker → platform operator. (Legacy role rows kept additively.)
+// Create a Better Auth-shaped user. `roles` is the buyer/seller/broker designation,
+// mapped onto Phase-3 structure: buyer/seller → owner of a Business of that `kind`;
+// broker → platform operator.
 export async function makeUser(email: string, roles: string[] = []): Promise<string> {
   const id = crypto.randomUUID();
   await sql`INSERT INTO "user" (id, name, email, "emailVerified") VALUES (${id}, ${email}, ${email}, true)`;
-  for (const r of roles)
-    await sql`INSERT INTO user_role (user_id, role_id) SELECT ${id}, id FROM role WHERE name = ${r}`;
   if (roles.includes("broker"))
     await sql`UPDATE "user" SET "platformRole" = 'operator' WHERE id = ${id}`;
   const isBuyer = roles.includes("buyer");

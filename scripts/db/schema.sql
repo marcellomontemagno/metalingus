@@ -8,20 +8,6 @@ CREATE TYPE grade AS ENUM ('S235JR', 'DX51');
 
 CREATE TYPE order_status AS ENUM ('MATCHED', 'APPROVED', 'PAID', 'DISPATCHED', 'DELIVERED', 'CANCELLED');
 
--- Phase-1 temporary role mapping: global roles keyed to the Better Auth user.
-CREATE TABLE role (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name TEXT UNIQUE NOT NULL
-);
-
-INSERT INTO role (name) VALUES ('buyer'), ('seller'), ('broker') ON CONFLICT (name) DO NOTHING;
-
-CREATE TABLE user_role (
-    user_id TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
-    role_id UUID NOT NULL REFERENCES role(id) ON DELETE CASCADE,
-    PRIMARY KEY (user_id, role_id)
-);
-
 CREATE TABLE inquiry (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     bars_requested INT NOT NULL,

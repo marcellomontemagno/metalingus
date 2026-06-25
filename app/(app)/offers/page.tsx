@@ -108,7 +108,7 @@ export default function OffersPage() {
       <Card>
         <CardHeader>
           <CardTitle>My Offers</CardTitle>
-          {auth.isSeller && auth.canManage && (
+          {auth.isSeller && (
             <CardAction>
               <Button
                 size="sm"

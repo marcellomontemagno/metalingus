@@ -11,8 +11,8 @@ type Params = { params: Promise<{ id: string }> };
 
 export async function PATCH(request: Request, { params }: Params) {
   const ctx = await getAuthContext();
-  const { orgId, isBuyer, canManage } = access(ctx);
-  if (!orgId || !isBuyer || !canManage)
+  const { orgId, isBuyer } = access(ctx);
+  if (!orgId || !isBuyer)
     return new Response("Forbidden", { status: 403 });
   const { id } = await params;
   let fields: Inquiry;
@@ -45,8 +45,8 @@ export async function PATCH(request: Request, { params }: Params) {
 
 export async function DELETE(_request: Request, { params }: Params) {
   const ctx = await getAuthContext();
-  const { orgId, isBuyer, canManage } = access(ctx);
-  if (!orgId || !isBuyer || !canManage)
+  const { orgId, isBuyer } = access(ctx);
+  if (!orgId || !isBuyer)
     return new Response("Forbidden", { status: 403 });
   const { id } = await params;
   const linked = await sql`SELECT 1 FROM "order" WHERE inquiry_id = ${id} LIMIT 1`;

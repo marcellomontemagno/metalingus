@@ -5,5 +5,4 @@ export default interface AuthContext {
   isOperator: boolean;
   isBuyer: boolean;
   isSeller: boolean;
-  canManage: boolean;
 }
