@@ -1,12 +1,13 @@
 import { redirect } from "next/navigation";
 import getAuthContext from "@/lib/auth/getAuthContext";
+import { access } from "@/lib/auth/access";
 
 export default async function OffersLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const { roles } = await getAuthContext();
-  if (!roles.some((r) => r.name === "seller" || r.name === "broker")) redirect("/");
+  const { isSeller, isOperator } = access(await getAuthContext());
+  if (!isSeller && !isOperator) redirect("/");
   return children;
 }

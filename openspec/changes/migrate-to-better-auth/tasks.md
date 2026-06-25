@@ -1,7 +1,7 @@
 ## 1. Phase 0 — Spike & decisions
 
 - [x] 1.1 Spike Better Auth on the `@neondatabase/serverless` `Pool` — **confirmed: `Pool` + `ws` (`neonConfig.webSocketConstructor`) connects to `neondb`**
-- [ ] 1.2 Finalize the org `kind` (buyer/seller/both) field shape — broker's home is decided (Better Auth admin plugin)
+- [x] 1.2 Org `kind` (buyer/seller/both) is an organization `additionalField`; broker's home is a lean `platformRole` user field — revised from the admin plugin and ratified (see design decision #2)
 - [x] 1.3 Greenfield: wiped schema, ran Better Auth migrate, reconciled app tables (`user_id` → text FK) + re-seeded — **10 tables, 3 users, sample data, dev operator `g@esposi.to` (all roles)**
 
 ## 2. Phase 1 — Provider swap (like-for-like)
@@ -31,8 +31,8 @@
 - [x] 4.2 Added `kind` (buyer/seller/both) to `organization` via the plugin's `additionalFields`; `seed-orgs` derives it from the user's roles. No backfill
 - [x] 4.3 Modeled the platform role as a `platformRole` user field (`operator`), set by `provisionOperator` — lighter than the admin plugin (decision #2 revisited). Additive: the global `broker` role stays until Step 4/4.7
 - [x] 4.4 All 6 handlers org-scoped via `access(ctx)`: visibility by `organization_id`, writes gated by `kind` + owner/admin `memberRole`, orders operator-only; broker-sees-all + margin privacy preserved; ownership stamped server-side. Harness reworked (roles→org/platformRole); tsc 0, 28 tests pass
-- [ ] 4.5 Evolve the `getAuthContext` / `useAuthContext` shape to `{ user, organization, member role, platform role }`
-- [ ] 4.6 Reconcile the `inquiries`/`offers`/`orders` spec visibility scenarios to org-scoped; update tests
+- [x] 4.5 `getAuthContext` returns `{ user, roles, organization, memberRole, platformRole }`; client `useAuthContext` carries the derived `access()` booleans (`isOperator/isBuyer/isSeller/canManage`) seeded via `SetAuthContext`. Layouts/AppShell/components all read these
+- [x] 4.6 Spec visibility scenarios are org-scoped (authored for this change); tests updated — harness maps roles→org/platformRole, ownership test reframed. 28 pass. (Member-role-gating scenarios await multi-member, parked on `members-management`)
 - [ ] 4.7 Drop `role` and `user_role`
 
 ## 5. Verification

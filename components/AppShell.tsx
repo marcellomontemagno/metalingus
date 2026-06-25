@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import getAuthContext from "@/lib/auth/getAuthContext";
+import { access } from "@/lib/auth/access";
 import { sql } from "@/lib/db/db";
 import AppSidebar from "@/components/AppSidebar";
 import SetAuthContext from "@/components/SetAuthContext";
@@ -16,8 +17,9 @@ export default async function AppShell({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const { user, roles } = await getAuthContext();
-  const has = (name: string) => roles.some((r) => r.name === name);
+  const ctx = await getAuthContext();
+  const { user } = ctx;
+  const { isOperator, isBuyer, isSeller, canManage } = access(ctx);
 
   // Current Business to surface in the sidebar (first membership for now; the
   // deferred switcher will let multi-org users choose the active one).
@@ -29,12 +31,12 @@ export default async function AppShell({
     : null;
 
   const items = [
-    ...(has("buyer") ? [{ href: "/inquiries", label: "Inquiries", icon: "inbox" }] : []),
-    ...(has("seller") ? [{ href: "/offers", label: "Offers", icon: "tag" }] : []),
-    ...(has("broker") || has("buyer") || has("seller")
+    ...(isBuyer ? [{ href: "/inquiries", label: "Inquiries", icon: "inbox" }] : []),
+    ...(isSeller ? [{ href: "/offers", label: "Offers", icon: "tag" }] : []),
+    ...(isOperator || isBuyer || isSeller
       ? [{ href: "/orders", label: "Orders", icon: "package" }]
       : []),
-    ...(has("broker") ? [{ href: "/operator", label: "Operator", icon: "shield" }] : []),
+    ...(isOperator ? [{ href: "/operator", label: "Operator", icon: "shield" }] : []),
   ];
 
   async function signOutAction() {
@@ -45,7 +47,13 @@ export default async function AppShell({
 
   return (
     <SidebarProvider>
-      <SetAuthContext userId={user.id} roles={roles.map((r) => r.name)}>
+      <SetAuthContext
+        userId={user.id}
+        isOperator={isOperator}
+        isBuyer={isBuyer}
+        isSeller={isSeller}
+        canManage={canManage}
+      >
         <AppSidebar
           items={items}
           userEmail={user.email}

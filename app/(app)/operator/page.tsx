@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import getAuthContext from "@/lib/auth/getAuthContext";
+import { access } from "@/lib/auth/access";
 import { auth } from "@/lib/auth";
 import {
   provisionBusiness,
@@ -22,9 +23,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-async function assertBroker() {
-  const { roles } = await getAuthContext();
-  if (!roles.some((r) => r.name === "broker")) throw new Error("Forbidden");
+async function assertOperator() {
+  const ctx = await getAuthContext();
+  if (!access(ctx).isOperator) throw new Error("Forbidden");
 }
 
 function emailState(requested: boolean, sent: boolean): string {
@@ -56,13 +57,11 @@ export default async function OperatorPage({
 
   const operators = await sql`
     SELECT u.email, u.name FROM "user" u
-    JOIN user_role ur ON ur.user_id = u.id
-    JOIN role r ON r.id = ur.role_id
-    WHERE r.name = 'broker' ORDER BY u.email`;
+    WHERE u."platformRole" = 'operator' ORDER BY u.email`;
 
   async function provisionBiz(formData: FormData) {
     "use server";
-    await assertBroker();
+    await assertOperator();
     const email = String(formData.get("email") ?? "").trim();
     const businessName = String(formData.get("businessName") ?? "").trim();
     const type = String(formData.get("type") ?? "");
@@ -84,7 +83,7 @@ export default async function OperatorPage({
 
   async function provisionOp(formData: FormData) {
     "use server";
-    await assertBroker();
+    await assertOperator();
     const email = String(formData.get("email") ?? "").trim();
     const sendEmail = formData.get("sendEmail") === "on";
     if (!email) {

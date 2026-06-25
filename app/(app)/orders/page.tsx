@@ -54,7 +54,7 @@ export default function OrdersPage() {
   const offersMap = useStore((s) => s.entities.offer);
   const auth = useAuthContext();
 
-  const isBroker = auth.roles.includes("broker");
+  const isBroker = auth.isOperator;
 
   const orders = Object.values(ordersMap);
   const orderOffers = Object.values(orderOffersMap);
