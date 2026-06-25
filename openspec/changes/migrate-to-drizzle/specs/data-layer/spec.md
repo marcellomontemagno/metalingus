@@ -26,8 +26,8 @@ The system SHALL derive row and input types from the Drizzle schema and make the
 - **THEN** it resolves from the schema module without pulling in the database driver, the connection string, or any other server-only code
 
 #### Scenario: Validators cannot drift from the schema
-- **WHEN** a column is added, changed, or removed in the Drizzle schema
-- **THEN** the generated input validator and the inferred row/insert types reflect the change automatically, with no separately maintained row type to update
+- **WHEN** a column is added or removed in the Drizzle schema without the matching model schema being updated
+- **THEN** the build fails — a compile-time guard asserts each model's field set against the table's inferred type, so the validators and the schema cannot silently drift apart
 
 ### Requirement: Behavior and invariants preserved
 The data-layer migration SHALL preserve every existing API response shape and domain invariant; it introduces no spec-level behavior change.

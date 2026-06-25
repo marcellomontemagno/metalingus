@@ -28,9 +28,9 @@
 
 ## 5. Phase 5 — Types via drizzle-zod
 
-- [ ] 5.1 Generate input validators with `createInsertSchema(table, { … })`, porting every `lib/model/**` refinement (`coerce`, `positive`, enum, nullable/optional)
-- [ ] 5.2 Repoint server validation + client form imports to the generated validators; remove the superseded hand-written `lib/model/**` Zod (retain enum value lists if still referenced)
-- [ ] 5.3 Confirm a client component imports a validator without pulling in `db.ts` (the client/server share works)
+- [x] 5.1 Evaluated `drizzle-zod` — it would override ~8/11 fields (coercion / `text` ids / date / input-vs-response optionality), net-equal to the hand-written Zod; kept the readable `lib/model/**` Zod instead (**Decision 5 revised** — drift guard over generated validators)
+- [x] 5.2 Added `lib/db/schema-drift.ts`: a type-only compile-time guard asserting each model's field set == its table's `$inferSelect` (`user` = curated subset); a column add/remove without a matching model edit fails `tsc` — verified it rejects a deliberate mismatch
+- [x] 5.3 Client/server type-sharing already proven: the `schema.ts`/`db.ts` split + `test/schema-client-safe.test.ts` (Phase 2) keep types/validators client-importable without pulling in the driver
 
 ## 6. Phase 6 — Retire the old layer + harness
 
