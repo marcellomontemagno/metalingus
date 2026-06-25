@@ -31,8 +31,9 @@ export default async function AppShell({
     : null;
 
   const items = [
-    ...(isBuyer ? [{ href: "/inquiries", label: "Inquiries", icon: "inbox" }] : []),
-    ...(isSeller ? [{ href: "/offers", label: "Offers", icon: "tag" }] : []),
+    // Operators see everything (broker-sees-all), matching the route layouts/handlers.
+    ...(isBuyer || isOperator ? [{ href: "/inquiries", label: "Inquiries", icon: "inbox" }] : []),
+    ...(isSeller || isOperator ? [{ href: "/offers", label: "Offers", icon: "tag" }] : []),
     ...(isOperator || isBuyer || isSeller
       ? [{ href: "/orders", label: "Orders", icon: "package" }]
       : []),
