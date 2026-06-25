@@ -9,9 +9,9 @@
 
 ## 2. Phase 2 — Drizzle client (dual-run, no behavior change)
 
-- [ ] 2.1 Add `lib/db/db.ts`: `db` via `drizzle-orm/neon-http` (app reads/writes) and `txDb` via `drizzle-orm/neon-serverless` `Pool` (transactions + Better Auth), both over `schema`
-- [ ] 2.2 Lint/CI guard: `lib/db/schema.ts` imports only `drizzle-orm`/`drizzle-zod` — never `db.ts` or the connection string (keeps it client-safe)
-- [ ] 2.3 Smoke test: a trivial `db.select()` runs against dev; the existing `sql` path is untouched
+- [x] 2.1 `lib/db/db.ts`: `db` via `drizzle-orm/neon-http` (app reads/writes) and `txDb` via `drizzle-orm/neon-serverless` `Pool` (transactions + Better Auth), both over `schema`; legacy `sql` kept for the dual-run
+- [x] 2.2 Client-safe guard: `test/schema-client-safe.test.ts` asserts `schema.ts` imports no `./db`, `process.env`, or driver (keeps inferred types/zod client-importable)
+- [x] 2.3 Smoke: `db.select()` over neon-http returned dev rows with camelCase inference (`barsRequested`); existing `sql` path untouched; 37 tests green
 
 ## 3. Phase 3 — Better Auth on the Drizzle adapter
 
