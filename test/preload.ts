@@ -2,13 +2,13 @@
 // for the test-controlled one, before any route handler is imported. The real
 // getAuthContext runs against pglite, so role resolution is exercised too.
 import { mock } from "bun:test";
-import { sql } from "./helpers/db";
+import { sql, db } from "./helpers/db";
 import { getSession } from "./helpers/ctx";
 
 // lib/auth constructs neon() at import; never loaded here, but keep env sane.
 process.env.POSTGRES_URL ||= "postgresql://test:test@localhost:5432/test";
 
-mock.module("@/lib/db/db", () => ({ sql }));
+mock.module("@/lib/db/db", () => ({ sql, db, txDb: db }));
 // getAuthContext resolves identity via @/lib/auth's getSession + next/headers.
 // createOrganization is a minimal stand-in for Better Auth's: it writes the org +
 // owner membership to pglite so provisionBusiness is exercisable in-harness.

@@ -3,6 +3,8 @@
 // table in production; the harness creates a compatible one before the app schema.
 import { readFileSync } from "node:fs";
 import { PGlite } from "@electric-sql/pglite";
+import { drizzle } from "drizzle-orm/pglite";
+import * as schema from "@/lib/db/schema";
 import { asUser } from "./ctx";
 
 const pg = new PGlite(); // in-memory; one per test process
@@ -36,6 +38,9 @@ await pg.exec(`CREATE TABLE member (
   "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now()
 );`);
 await pg.exec(readFileSync("scripts/db/schema.sql", "utf8")); // app tables (FK to user/org)
+
+// Drizzle over the same pglite — what the handlers' `db`/`txDb` resolve to in tests.
+export const db = drizzle(pg, { schema });
 
 function makeQuery(text: string, params: unknown[]) {
   const run = () => pg.query(text, params).then((r) => r.rows);
