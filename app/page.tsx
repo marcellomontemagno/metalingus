@@ -1,9 +1,10 @@
-import { auth } from "@/auth";
+import { auth } from "@/lib/auth";
+import { headers } from "next/headers";
 import AppShell from "@/components/AppShell";
 import Link from "next/link";
 
 export default async function Home() {
-  const session = await auth();
+  const session = await auth.api.getSession({ headers: await headers() });
 
   if (!session) {
     return (
