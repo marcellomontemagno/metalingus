@@ -43,13 +43,13 @@ Fill in the values in `.env.local` (see `.env.example` for what each does):
 ### 3. Set up the database
 
 ```bash
-pnpm db:setup     # Better Auth migrate, then app tables + sample data
+pnpm db:setup     # drizzle-kit migrate, then sample data + Businesses
 ```
 
-This runs the Better Auth schema migration (`user`/`session`/`account`/`verification`), then
-`scripts/db/schema.sql` (app tables) and `scripts/db/seed.sql` (sample inquiries/offers) against
-`POSTGRES_URL`. Run the parts individually with `pnpm db:auth-migrate`, `pnpm db:bootstrap`,
-`pnpm db:seed`; or `pnpm db:reset` to wipe and rebuild (destructive). See [`SETUP.md`](./SETUP.md).
+The whole schema lives in `lib/db/schema.ts` (Drizzle); `db:setup` applies the migrations under
+`drizzle/`, then `db:seed` (sample inquiries/offers) and `db:seed-orgs` (a Business per user)
+against `POSTGRES_URL`. Run the parts with `pnpm db:migrate`, `pnpm db:seed`, `pnpm db:seed-orgs`;
+or `pnpm db:reset` to wipe and rebuild (destructive). See [`SETUP.md`](./SETUP.md).
 
 ### 4. Create your sign-in user
 

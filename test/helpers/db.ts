@@ -1,25 +1,20 @@
 // In-process Postgres (pglite) wearing the @neondatabase/serverless interface, so
 // the real route handlers run unmodified against it. Better Auth owns the `user`
 // table in production; the harness creates a compatible one before the app schema.
-import { readFileSync, readdirSync } from "node:fs";
 import { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
+import { migrate } from "drizzle-orm/pglite/migrator";
 import * as schema from "@/lib/db/schema";
 import { asUser } from "./ctx";
 
 const pg = new PGlite(); // in-memory; one per test process
 
-// Apply the Drizzle migrations — the single schema source (replaces the
-// hand-written Better Auth tables + scripts/db/schema.sql). Split on drizzle's
-// breakpoint and run each statement (pglite's exec won't take the whole file).
-for (const f of readdirSync("drizzle").filter((f) => f.endsWith(".sql")).sort()) {
-  for (const stmt of readFileSync(`drizzle/${f}`, "utf8").split("--> statement-breakpoint")) {
-    if (stmt.trim()) await pg.exec(stmt);
-  }
-}
-
 // Drizzle over the same pglite — what the handlers' `db`/`txDb` resolve to in tests.
 export const db = drizzle(pg, { schema });
+
+// Build the schema by applying the Drizzle migrations (the single schema source) —
+// drizzle's own migrator handles statement-breakpoints, ordering, and tracking.
+await migrate(db, { migrationsFolder: "drizzle" });
 
 function makeQuery(text: string, params: unknown[]) {
   const run = () => pg.query(text, params).then((r) => r.rows);
