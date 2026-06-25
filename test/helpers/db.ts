@@ -15,9 +15,27 @@ await pg.exec(`CREATE TABLE "user" (
   "emailVerified" BOOLEAN NOT NULL DEFAULT false,
   image TEXT,
   "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
-  "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+  "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
+  "platformRole" TEXT
 );`);
-await pg.exec(readFileSync("scripts/db/schema.sql", "utf8")); // app tables (FK to user)
+// Better Auth's organization table (the app FKs `organization_id` to it).
+await pg.exec(`CREATE TABLE organization (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  slug TEXT,
+  logo TEXT,
+  "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
+  metadata TEXT,
+  kind TEXT
+);`);
+await pg.exec(`CREATE TABLE member (
+  id TEXT PRIMARY KEY,
+  "organizationId" TEXT NOT NULL,
+  "userId" TEXT NOT NULL,
+  role TEXT NOT NULL,
+  "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now()
+);`);
+await pg.exec(readFileSync("scripts/db/schema.sql", "utf8")); // app tables (FK to user/org)
 
 function makeQuery(text: string, params: unknown[]) {
   const run = () => pg.query(text, params).then((r) => r.rows);
@@ -47,20 +65,36 @@ export const sql: any = Object.assign(
   },
 );
 
-// Clear all data between tests; keep the seeded role rows.
+// Clear all data between tests.
 export async function reset() {
   await pg.exec(
-    `TRUNCATE order_offer, "order", user_role, offer, inquiry, "user" RESTART IDENTITY CASCADE;`,
+    `TRUNCATE order_offer, "order", offer, inquiry, member, organization, "user" RESTART IDENTITY CASCADE;`,
   );
 }
 
-// Create a Better Auth-shaped user with the given roles; returns the (text) id.
+// Create a Better Auth-shaped user. `roles` is the buyer/seller/broker designation,
+// mapped onto Phase-3 structure: buyer/seller → owner of a Business of that `kind`;
+// broker → platform operator.
 export async function makeUser(email: string, roles: string[] = []): Promise<string> {
   const id = crypto.randomUUID();
   await sql`INSERT INTO "user" (id, name, email, "emailVerified") VALUES (${id}, ${email}, ${email}, true)`;
-  for (const r of roles)
-    await sql`INSERT INTO user_role (user_id, role_id) SELECT ${id}, id FROM role WHERE name = ${r}`;
+  if (roles.includes("broker"))
+    await sql`UPDATE "user" SET "platformRole" = 'operator' WHERE id = ${id}`;
+  const isBuyer = roles.includes("buyer");
+  const isSeller = roles.includes("seller");
+  if (isBuyer || isSeller) {
+    const kind = isBuyer && isSeller ? "both" : isBuyer ? "buyer" : "seller";
+    const orgId = crypto.randomUUID();
+    await sql`INSERT INTO organization (id, name, slug, kind) VALUES (${orgId}, ${email}, ${email}, ${kind})`;
+    await sql`INSERT INTO member (id, "organizationId", "userId", role) VALUES (${crypto.randomUUID()}, ${orgId}, ${id}, 'owner')`;
+  }
   return id;
+}
+
+// The org a user owns/belongs to — used to stamp seeded entities with their org.
+export async function orgOf(userId: string): Promise<string | null> {
+  const rows = await sql`SELECT "organizationId" AS org FROM member WHERE "userId" = ${userId} LIMIT 1`;
+  return (rows[0]?.org as string) ?? null;
 }
 
 // makeUser + set the session to that email.
@@ -71,16 +105,16 @@ export async function login(email: string, roles: string[] = []): Promise<string
 }
 
 export async function seedInquiry(userId: string, over: Record<string, any> = {}): Promise<string> {
-  const v = { bars_requested: 100, latest_delivery_date: null, grade: "S235JR", shape: "SQUARE", width: 50, height: 50, thickness: 5, notes: null, ...over };
-  const rows = await sql`INSERT INTO inquiry (bars_requested, latest_delivery_date, grade, shape, width, height, thickness, notes, user_id)
-    VALUES (${v.bars_requested}, ${v.latest_delivery_date}, ${v.grade}, ${v.shape}, ${v.width}, ${v.height}, ${v.thickness}, ${v.notes}, ${userId}) RETURNING id`;
+  const v = { bars_requested: 100, latest_delivery_date: null, grade: "S235JR", shape: "SQUARE", width: 50, height: 50, thickness: 5, notes: null, organization_id: await orgOf(userId), ...over };
+  const rows = await sql`INSERT INTO inquiry (bars_requested, latest_delivery_date, grade, shape, width, height, thickness, notes, user_id, organization_id)
+    VALUES (${v.bars_requested}, ${v.latest_delivery_date}, ${v.grade}, ${v.shape}, ${v.width}, ${v.height}, ${v.thickness}, ${v.notes}, ${userId}, ${v.organization_id}) RETURNING id`;
   return rows[0].id as string;
 }
 
 export async function seedOffer(userId: string, over: Record<string, any> = {}): Promise<string> {
-  const v = { bars_available: 120, grade: "S235JR", shape: "SQUARE", width: 50, height: 50, thickness: 5, bars_per_bundle: 25, weight_per_meter: 6.97, price_per_meter: 11.5, currency: "EUR", notes: null, ...over };
-  const rows = await sql`INSERT INTO offer (bars_available, grade, shape, width, height, thickness, bars_per_bundle, weight_per_meter, price_per_meter, currency, notes, user_id)
-    VALUES (${v.bars_available}, ${v.grade}, ${v.shape}, ${v.width}, ${v.height}, ${v.thickness}, ${v.bars_per_bundle}, ${v.weight_per_meter}, ${v.price_per_meter}, ${v.currency}, ${v.notes}, ${userId}) RETURNING id`;
+  const v = { bars_available: 120, grade: "S235JR", shape: "SQUARE", width: 50, height: 50, thickness: 5, bars_per_bundle: 25, weight_per_meter: 6.97, price_per_meter: 11.5, currency: "EUR", notes: null, organization_id: await orgOf(userId), ...over };
+  const rows = await sql`INSERT INTO offer (bars_available, grade, shape, width, height, thickness, bars_per_bundle, weight_per_meter, price_per_meter, currency, notes, user_id, organization_id)
+    VALUES (${v.bars_available}, ${v.grade}, ${v.shape}, ${v.width}, ${v.height}, ${v.thickness}, ${v.bars_per_bundle}, ${v.weight_per_meter}, ${v.price_per_meter}, ${v.currency}, ${v.notes}, ${userId}, ${v.organization_id}) RETURNING id`;
   return rows[0].id as string;
 }
 
@@ -90,8 +124,10 @@ export async function seedOrder(
   offerIds: string[],
   { status = "MATCHED", margin = 0 }: { status?: string; margin?: number } = {},
 ): Promise<string> {
-  const rows = await sql`INSERT INTO "order" (status, inquiry_id, margin, user_id)
-    VALUES (${status}, ${inquiryId}, ${margin}, ${brokerId}) RETURNING id`;
+  const inq = await sql`SELECT organization_id AS org FROM inquiry WHERE id = ${inquiryId}`;
+  const orgId = (inq[0]?.org as string) ?? null;
+  const rows = await sql`INSERT INTO "order" (status, inquiry_id, margin, user_id, organization_id)
+    VALUES (${status}, ${inquiryId}, ${margin}, ${brokerId}, ${orgId}) RETURNING id`;
   const orderId = rows[0].id as string;
   for (const offerId of offerIds)
     await sql`INSERT INTO order_offer (id, order_id, offer_id) VALUES (${crypto.randomUUID()}, ${orderId}, ${offerId})`;

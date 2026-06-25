@@ -8,20 +8,6 @@ CREATE TYPE grade AS ENUM ('S235JR', 'DX51');
 
 CREATE TYPE order_status AS ENUM ('MATCHED', 'APPROVED', 'PAID', 'DISPATCHED', 'DELIVERED', 'CANCELLED');
 
--- Phase-1 temporary role mapping: global roles keyed to the Better Auth user.
-CREATE TABLE role (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name TEXT UNIQUE NOT NULL
-);
-
-INSERT INTO role (name) VALUES ('buyer'), ('seller'), ('broker') ON CONFLICT (name) DO NOTHING;
-
-CREATE TABLE user_role (
-    user_id TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
-    role_id UUID NOT NULL REFERENCES role(id) ON DELETE CASCADE,
-    PRIMARY KEY (user_id, role_id)
-);
-
 CREATE TABLE inquiry (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     bars_requested INT NOT NULL,
@@ -32,7 +18,8 @@ CREATE TABLE inquiry (
     height DECIMAL(8,2) NOT NULL,
     thickness DECIMAL(6,2) NOT NULL,
     notes TEXT,
-    user_id TEXT NOT NULL REFERENCES "user"(id)
+    user_id TEXT NOT NULL REFERENCES "user"(id),
+    organization_id TEXT REFERENCES organization(id)
 );
 
 CREATE TABLE offer (
@@ -48,7 +35,8 @@ CREATE TABLE offer (
     price_per_meter DECIMAL(10,4) NOT NULL,
     currency CHAR(3) NOT NULL DEFAULT 'EUR',
     notes TEXT,
-    user_id TEXT NOT NULL REFERENCES "user"(id)
+    user_id TEXT NOT NULL REFERENCES "user"(id),
+    organization_id TEXT REFERENCES organization(id)
 );
 
 CREATE TABLE "order" (
@@ -57,7 +45,8 @@ CREATE TABLE "order" (
     inquiry_id UUID NOT NULL REFERENCES inquiry(id),
     margin DECIMAL(6,4) NOT NULL DEFAULT 0,
     notes TEXT,
-    user_id TEXT NOT NULL REFERENCES "user"(id)
+    user_id TEXT NOT NULL REFERENCES "user"(id),
+    organization_id TEXT REFERENCES organization(id)
 );
 
 CREATE TABLE order_offer (

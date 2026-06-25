@@ -1,5 +1,5 @@
 import { test, expect, describe, beforeEach } from "bun:test";
-import { reset, makeUser, login, seedInquiry, seedOffer, seedOrder } from "./helpers/db";
+import { reset, makeUser, login, seedInquiry, seedOffer, seedOrder, orgOf } from "./helpers/db";
 import { asUser } from "./helpers/ctx";
 import { req, anInquiry, anOffer } from "./helpers/factories";
 import { GET as listInquiries, POST as createInquiry } from "@/app/api/inquiries/route";
@@ -23,10 +23,19 @@ describe("access-control: roles", () => {
 });
 
 describe("access-control: ownership", () => {
-  test("a user cannot create an entity owned by someone else", async () => {
-    await login("buyer@t", ["buyer"]);
+  test("a forged userId on create is ignored — the entity is owned by the caller", async () => {
+    const me = await login("buyer@t", ["buyer"]);
     const res = await createInquiry(req("POST", anInquiry({ userId: crypto.randomUUID() })));
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(201);
+    // server stamps ownership from the session/org, never the submitted userId.
+    expect((await res.json()).inquiry[0].userId).toBe(me);
+  });
+
+  test("create stamps the entity with the caller's organization", async () => {
+    const me = await login("buyer@t", ["buyer"]);
+    const org = await orgOf(me);
+    const res = await createInquiry(req("POST", anInquiry({ userId: me })));
+    expect((await res.json()).inquiry[0].organizationId).toBe(org);
   });
 });
 

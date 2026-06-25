@@ -87,7 +87,7 @@ export default function InquiriesPage() {
       <Card>
         <CardHeader>
           <CardTitle>My Inquiries</CardTitle>
-          {auth.roles.includes("buyer") && (
+          {auth.isBuyer && (
             <CardAction>
               <Button
                 size="sm"

@@ -1,6 +1,7 @@
 import { ZodError } from "zod";
 import { sql } from "@/lib/db/db";
 import getAuthContext from "@/lib/auth/getAuthContext";
+import { access } from "@/lib/auth/access";
 import { offerSchema } from "@/lib/model/offer/Offer";
 import type Offer from "@/lib/model/offer/Offer";
 import { userSchema } from "@/lib/model/user/User";
@@ -12,30 +13,29 @@ import insertClause from "@/lib/db/insertClause";
 
 export async function GET() {
   const ctx = await getAuthContext();
-  const has = (name: string) => ctx.roles.some((r) => r.name === name);
-  const userId = ctx.user.id;
+  const { isOperator, orgId, isBuyer, isSeller } = access(ctx);
   let rows: Record<string, unknown>[] = [];
-  if (has("broker")) {
+  if (isOperator) {
     rows = await sql`SELECT * FROM offer`;
-  } else if (has("seller")) {
-    rows = await sql`
-      SELECT * FROM offer WHERE user_id = ${userId}
-    `;
-  } else if (has("buyer")) {
-    // buyers only see offers linked to their own orders, and only at the
-    // marked-up price (seller price × (1 + order margin)) — never the raw
-    // seller price or the margin itself.
+  } else if (isSeller && orgId) {
+    // Sell-first: a `both`-type org matches here and sees its own offers; it does
+    // not fall through to the buyer branch below (its orders' marked-up offers).
+    rows = await sql`SELECT * FROM offer WHERE organization_id = ${orgId}`;
+  } else if (isBuyer && orgId) {
+    // buyers only see offers linked to their own org's orders, and only at the
+    // marked-up price (seller price × (1 + order margin)) — never the raw seller
+    // price or the margin itself.
     rows = await sql`
       SELECT DISTINCT
         f.id, f.bars_available, f.grade, f.shape, f.width, f.height,
         f.thickness, f.bars_per_bundle, f.weight_per_meter,
         (f.price_per_meter * (1 + o.margin)) AS price_per_meter,
-        f.currency, f.notes, f.user_id
+        f.currency, f.notes, f.user_id, f.organization_id
       FROM offer f
       JOIN order_offer oo ON oo.offer_id = f.id
       JOIN "order" o ON o.id = oo.order_id
       JOIN inquiry i ON i.id = o.inquiry_id
-      WHERE i.user_id = ${userId}
+      WHERE i.organization_id = ${orgId}
     `;
   }
   const offers = parseRows(offerSchema, rows);
@@ -51,7 +51,7 @@ export async function GET() {
     }
   }
 
-  const orders = sanitizeOrders(parseRows(orderSchema, orderRows), has("broker"));
+  const orders = sanitizeOrders(parseRows(orderSchema, orderRows), isOperator);
 
   const userIds = [...new Set(offers.map((o) => o.userId))];
   const userRows = userIds.length
@@ -67,7 +67,9 @@ export async function GET() {
 
 export async function POST(request: Request) {
   const ctx = await getAuthContext();
-  if (!ctx.roles.some((r) => r.name === "seller"))
+  const { orgId, isSeller } = access(ctx);
+  // Any member of a seller Business can post offers.
+  if (!orgId || !isSeller)
     return new Response("Forbidden", { status: 403 });
   const userId = ctx.user.id;
   let fields: Offer;
@@ -78,12 +80,11 @@ export async function POST(request: Request) {
       err instanceof ZodError ? err.issues[0].message : "Invalid request body";
     return new Response(message, { status: 400 });
   }
-  if (fields.userId !== userId) {
-    return new Response("Cannot create an offer for another user", {
-      status: 403,
-    });
-  }
-  const { columns, placeholders, values } = insertClause({ ...fields, userId });
+  const { columns, placeholders, values } = insertClause({
+    ...fields,
+    userId,
+    organizationId: orgId,
+  });
   const rows = await sql.query(
     `INSERT INTO offer (${columns}) VALUES (${placeholders}) RETURNING *`,
     values,

@@ -108,7 +108,7 @@ export default function OffersPage() {
       <Card>
         <CardHeader>
           <CardTitle>My Offers</CardTitle>
-          {auth.roles.includes("seller") && (
+          {auth.isSeller && (
             <CardAction>
               <Button
                 size="sm"

@@ -7,13 +7,6 @@ VALUES (gen_random_uuid()::text, 'Sample Buyer', 'buyer@example.com', true, now(
 INSERT INTO "user" (id, name, email, "emailVerified", "createdAt", "updatedAt")
 VALUES (gen_random_uuid()::text, 'Sample Seller', 'seller@example.com', true, now(), now());
 
-INSERT INTO user_role (user_id, role_id)
-SELECT u.id, r.id FROM "user" u, role r
-WHERE u.email = 'buyer@example.com' AND r.name = 'buyer';
-INSERT INTO user_role (user_id, role_id)
-SELECT u.id, r.id FROM "user" u, role r
-WHERE u.email = 'seller@example.com' AND r.name = 'seller';
-
 -- Inquiries (owned by the buyer)
 INSERT INTO inquiry (bars_requested, latest_delivery_date, grade, shape, width, height, thickness, notes, user_id)
 SELECT 100, (CURRENT_DATE + make_interval(days => 30))::date, 'S235JR', 'SQUARE', 50, 50, 5, 'Warehouse mezzanine - structural', id FROM "user" WHERE email = 'buyer@example.com';

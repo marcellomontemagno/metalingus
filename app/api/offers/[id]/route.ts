@@ -1,6 +1,7 @@
 import { ZodError } from "zod";
 import { sql } from "@/lib/db/db";
 import getAuthContext from "@/lib/auth/getAuthContext";
+import { access } from "@/lib/auth/access";
 import { offerSchema } from "@/lib/model/offer/Offer";
 import type Offer from "@/lib/model/offer/Offer";
 import parseRow from "@/lib/db/parseRow";
@@ -10,9 +11,9 @@ type Params = { params: Promise<{ id: string }> };
 
 export async function PATCH(request: Request, { params }: Params) {
   const ctx = await getAuthContext();
-  if (!ctx.roles.some((r) => r.name === "seller"))
+  const { orgId, isSeller } = access(ctx);
+  if (!orgId || !isSeller)
     return new Response("Forbidden", { status: 403 });
-  const userId = ctx.user.id;
   const { id } = await params;
   let fields: Offer;
   try {
@@ -22,19 +23,16 @@ export async function PATCH(request: Request, { params }: Params) {
       err instanceof ZodError ? err.issues[0].message : "Invalid request body";
     return new Response(message, { status: 400 });
   }
-  if (fields.userId !== userId) {
-    return new Response("Cannot reassign an offer to another user", {
-      status: 403,
-    });
-  }
   const linked = await sql`SELECT 1 FROM order_offer WHERE offer_id = ${id} LIMIT 1`;
   if (linked[0])
     return new Response("Cannot modify an offer that is part of an order", {
       status: 403,
     });
+  const mutable: Record<string, unknown> = { ...fields };
+  delete mutable.userId;
   const { set, where, values } = setClause({
-    fields,
-    where: { id, userId },
+    fields: mutable,
+    where: { id, organizationId: orgId },
   });
   const rows = await sql.query(
     `UPDATE offer SET ${set} WHERE ${where} RETURNING *`,
@@ -46,9 +44,9 @@ export async function PATCH(request: Request, { params }: Params) {
 
 export async function DELETE(_request: Request, { params }: Params) {
   const ctx = await getAuthContext();
-  if (!ctx.roles.some((r) => r.name === "seller"))
+  const { orgId, isSeller } = access(ctx);
+  if (!orgId || !isSeller)
     return new Response("Forbidden", { status: 403 });
-  const userId = ctx.user.id;
   const { id } = await params;
   const linked = await sql`SELECT 1 FROM order_offer WHERE offer_id = ${id} LIMIT 1`;
   if (linked[0])
@@ -56,9 +54,7 @@ export async function DELETE(_request: Request, { params }: Params) {
       status: 403,
     });
   const rows = await sql`
-    DELETE FROM offer
-    WHERE id = ${id} AND user_id = ${userId}
-    RETURNING id
+    DELETE FROM offer WHERE id = ${id} AND organization_id = ${orgId} RETURNING id
   `;
   if (!rows[0]) return new Response("Not found", { status: 404 });
   return new Response(null, { status: 204 });

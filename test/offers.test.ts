@@ -60,6 +60,22 @@ describe("offers: visibility & price masking", () => {
     expect(body.offer[0].pricePerMeter).toBeCloseTo(15, 4); // 10 * (1 + 0.5)
     expect(body.order[0].margin).toBeNull(); // margin never reaches the buyer
   });
+
+  test("a both-type org is sell-first: sees its own offers, not its orders' marked-up offers", async () => {
+    const both = await makeUser("both@t", ["buyer", "seller"]);
+    const seller2 = await makeUser("s2@t", ["seller"]);
+    const broker = await makeUser("brk@t", ["broker"]);
+    const ownOffer = await seedOffer(both); // the both-org's own listing (seller view)
+    const inq = await seedInquiry(both); // ...the same org also buys
+    const linked = await seedOffer(seller2, { price_per_meter: 10 });
+    await seedOrder(broker, inq, [linked], { margin: 0.5 });
+
+    asUser("both@t");
+    const body = await (await GET()).json();
+    // isSeller short-circuits the GET, so a both-org sees only its own offer; the
+    // marked-up `linked` offer (the buyer branch) is intentionally not surfaced.
+    expect(body.offer.map((o: any) => o.id)).toEqual([ownOffer]);
+  });
 });
 
 describe("offers: edit & delete", () => {

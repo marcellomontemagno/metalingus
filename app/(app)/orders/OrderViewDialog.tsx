@@ -52,9 +52,8 @@ export default function OrderViewDialog({
 
   if (!order) return null;
 
-  const has = (r: string) => auth.roles.includes(r);
-  const isBroker = has("broker");
-  const isBuyer = has("buyer") && !isBroker;
+  const isBroker = auth.isOperator;
+  const isBuyer = auth.isBuyer && !isBroker;
 
   const links = Object.values(orderOffersMap).filter(
     (oo) => oo.orderId === order.id,

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Inbox, Package, Tag, type LucideIcon } from "lucide-react";
+import { Inbox, Package, Shield, Tag, type LucideIcon } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -22,6 +22,7 @@ const icons: Record<string, LucideIcon> = {
   inbox: Inbox,
   tag: Tag,
   package: Package,
+  shield: Shield,
 };
 
 type NavItem = {
@@ -33,10 +34,12 @@ type NavItem = {
 export default function AppSidebar({
   items,
   userEmail,
+  currentOrg,
   signOutAction,
 }: Readonly<{
   items: NavItem[];
   userEmail: string | null;
+  currentOrg: { name: string; slug: string } | null;
   signOutAction: () => Promise<void>;
 }>) {
   const pathname = usePathname();
@@ -50,6 +53,12 @@ export default function AppSidebar({
             Metalingus
           </span>
         </Link>
+        {currentOrg && (
+          <div className="px-2 pb-1">
+            <p className="text-xs text-muted-foreground">Business</p>
+            <p className="truncate text-sm font-medium">{currentOrg.name}</p>
+          </div>
+        )}
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>

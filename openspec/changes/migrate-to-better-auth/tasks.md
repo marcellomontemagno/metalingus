@@ -1,7 +1,7 @@
 ## 1. Phase 0 — Spike & decisions
 
 - [x] 1.1 Spike Better Auth on the `@neondatabase/serverless` `Pool` — **confirmed: `Pool` + `ws` (`neonConfig.webSocketConstructor`) connects to `neondb`**
-- [ ] 1.2 Finalize the org `kind` (buyer/seller/both) field shape — broker's home is decided (Better Auth admin plugin)
+- [x] 1.2 Org `kind` (buyer/seller/both) is an organization `additionalField`; broker's home is a lean `platformRole` user field — revised from the admin plugin and ratified (see design decision #2)
 - [x] 1.3 Greenfield: wiped schema, ran Better Auth migrate, reconciled app tables (`user_id` → text FK) + re-seeded — **10 tables, 3 users, sample data, dev operator `g@esposi.to` (all roles)**
 
 ## 2. Phase 1 — Provider swap (like-for-like)
@@ -18,23 +18,24 @@
 
 ## 3. Phase 2 — Organizations
 
-- [ ] 3.1 Add the `organization` plugin (server + client); run CLI migrate
-- [ ] 3.2 Provision a Business per existing user and set the creator as `owner` (backfill)
-- [ ] 3.3 Wire invitations via Resend (`sendInvitationEmail`) and the accept-invitation onboarding flow
-- [ ] 3.4 Active-organization selection + org switcher UI; surface the active org in `getAuthContext`
-- [ ] 3.5 Member management (invite / remove / change role) for `owner`/`admin`
+- [x] 3.1 Added the `organization` plugin (server) + Resend `sendInvitationEmail`; ran migrate — **organization/member/invitation tables + `session.activeOrganizationId`** (client `organizationClient` deferred with the switcher, 3.4)
+- [x] 3.2 Provisioned a Business per user via `auth.api.createOrganization` (owner membership) — `db:seed-orgs` (skips `broker` users, so operators get no Business); buyer@/seller@ each own a Business
+- [ ] 3.3 **Parked on the `members-management` branch** — invitations + accept flow (Members-page invite, public `/accept-invite`, one-click magic links). This branch keeps the org plugin's invitation tables/API but ships no member UI
+- [ ] 3.4 **Deferred** — shipped a read-only current-Business display in the sidebar (first membership) instead of the switcher. Still to build once multi-Business membership is real: `organizationClient`, `setActive` + dropdown, and reading the active org in `AppShell`/`getAuthContext`
+- [ ] 3.5 **Parked on the `members-management` branch** — member management (invite / remove / change role) on the Members page
+- [x] 3.6 Operator panel `/operator` (broker-gated): provision Businesses + operators with optional welcome email — `provisionBusiness`/`provisionOperator` + `provision-business` CLI; live Businesses/Operators lists
 
 ## 4. Phase 3 — Re-home the domain
 
-- [ ] 4.1 Add `organization_id` (+ `created_by`) to `inquiry`/`offer`/`order`; backfill from each owner's Business
-- [ ] 4.2 Add `kind` (buyer/seller/both) to `organization`; backfill from former roles
-- [ ] 4.3 Model `broker` as a platform role per the Phase 0 decision
-- [ ] 4.4 Switch route-handler visibility/ownership from `user_id` to `organization_id`; gate writes by business type + member role; keep broker-sees-all and margin privacy
-- [ ] 4.5 Evolve the `getAuthContext` / `useAuthContext` shape to `{ user, organization, member role, platform role }`
-- [ ] 4.6 Reconcile the `inquiries`/`offers`/`orders` spec visibility scenarios to org-scoped; update tests
-- [ ] 4.7 Drop `role` and `user_role`
+- [x] 4.1 Added `organization_id` to `inquiry`/`offer`/`order` (nullable, additive); `seed-orgs` links each entity to its owner's Business. No backfill (greenfield reset); `created_by` folds into the Step-5 `user_id`→`created_by` rename
+- [x] 4.2 Added `kind` (buyer/seller/both) to `organization` via the plugin's `additionalFields`; `seed-orgs` derives it from the user's roles. No backfill
+- [x] 4.3 Modeled the platform role as a `platformRole` user field (`operator`), set by `provisionOperator` — lighter than the admin plugin (decision #2 revisited). Additive: the global `broker` role stays until Step 4/4.7
+- [x] 4.4 All 6 handlers org-scoped via `access(ctx)`: visibility by `organization_id`, writes gated by `kind`, orders operator-only; broker-sees-all + margin privacy preserved; ownership stamped server-side. Harness reworked (roles→org/platformRole); tsc 0, 28 tests pass
+- [x] 4.5 `getAuthContext` returns `{ user, organization, platformRole }`; client `useAuthContext` carries the derived `access()` booleans (`isOperator/isBuyer/isSeller`) seeded via `SetAuthContext`. Layouts/AppShell/components all read these
+- [x] 4.6 Spec visibility scenarios are org-scoped (authored for this change); tests updated — harness maps roles→org/platformRole, ownership test reframed. 28 pass. (Member-role-gating scenarios await multi-member, parked on `members-management`)
+- [x] 4.7 Dropped `role`/`user_role` (schema, seed, harness, `getAuthContext`) **and** the member-role gate (`canManage`/`memberRole`) per the lean-branch decision — any member of a Business may act; member roles return with `members-management`. `provisionBusiness` now sets `kind` directly (panel gap fixed); `seed-orgs` keys `kind` off an explicit map, excludes operators via `platformRole`. Greenfield `db:reset` verified; tsc 0, 28 tests pass
 
 ## 5. Verification
 
-- [ ] 5.1 Tests cover invite→accept onboarding, org-scoped visibility, business-type gating, member-role gating, broker platform actions, and preserved margin privacy / order immutability
+- [x] 5.1 Tests (36) cover org-scoped visibility + isolation + `organization_id` stamping + cross-org rejection, business-type gating, operator platform actions, margin privacy, order immutability, `getAuthContext` shape (org / operator / none), provisioning (`kind` + `platformRole`, idempotent), and the both-org sell-first rule. Invite→accept onboarding + member-role gating live on `members-management`
 - [ ] 5.2 Validate the data migration and the session cutover on a staging copy before production
