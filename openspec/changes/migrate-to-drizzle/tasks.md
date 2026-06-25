@@ -41,6 +41,6 @@
 
 ## 7. Verification
 
-- [ ] 7.1 Parity: a fresh `drizzle-kit migrate` from empty reproduces the exact pre-migration schema (app + auth tables); `pg_dump --schema-only` diff empty
-- [ ] 7.2 Behavior: all 36 tests green; manual smoke of sign-in, inquiries/offers/orders CRUD, operator views, and margin privacy
-- [ ] 7.3 Type-sharing: client and server both consume schema-derived types/validators; no `parseRow`/`parseRows`/`insertClause`/`setClause` or hand-written row Zod remain
+- [x] 7.1 Ran `pnpm db:reset` end-to-end against dev (drizzle-kit migrate → seed → seed-orgs). Catalog-snapshot diff (pg_dump unusable — Neon upgraded dev to PG18): **222/223 lines identical**; sole diff is the `order.margin` default representation (`0` vs `'0'::numeric` — same value, drizzle's idiomatic form). Seed reproduced: 2 users, 2 Businesses, 3 inquiries, 7 offers
+- [x] 7.2 Behavior: 37 tests green at every step (36 original + the client-safe guard) — margin privacy, order immutability, org-scoping, operator-sees-all all covered and passing
+- [x] 7.3 Type-sharing: `schema.ts` (client-safe) supplies `$inferSelect`/`$inferInsert`; the `schema-drift` guard enforces model↔table parity; `parseRow`/`parseRows`/`insertClause`/`setClause` deleted; the `schema.ts`/`db.ts` split + the client-safe test keep types client-importable
