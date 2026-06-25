@@ -1,13 +1,12 @@
 import { z, ZodError } from "zod";
-import { sql } from "@/lib/db/db";
+import { eq, inArray } from "drizzle-orm";
+import { db, txDb } from "@/lib/db/db";
+import { order, orderOffer, offer, inquiry } from "@/lib/db/schema";
 import getAuthContext from "@/lib/auth/getAuthContext";
 import { access } from "@/lib/auth/access";
 import { orderSchema, sanitizeOrders } from "@/lib/model/order/Order";
 import type Order from "@/lib/model/order/Order";
 import { orderOfferSchema } from "@/lib/model/orderOffer/OrderOffer";
-import parseRow from "@/lib/db/parseRow";
-import parseRows from "@/lib/db/parseRows";
-import insertClause from "@/lib/db/insertClause";
 
 export async function GET() {
   const ctx = await getAuthContext();
@@ -15,64 +14,91 @@ export async function GET() {
   if (!isOperator && !orgId) {
     return Response.json({ order: [], orderOffer: [] });
   }
-  let orderRows: Record<string, unknown>[];
+
+  let orderRows: (typeof order.$inferSelect)[];
   if (isOperator) {
-    orderRows = await sql`SELECT * FROM "order"`;
+    orderRows = await db.select().from(order);
   } else {
-    const byId = new Map<string, Record<string, unknown>>();
+    const byId = new Map<string, typeof order.$inferSelect>();
     if (isBuyer) {
       (
-        await sql`
-          SELECT * FROM "order"
-          WHERE inquiry_id IN (SELECT id FROM inquiry WHERE organization_id = ${orgId})
-        `
-      ).forEach((r) => byId.set(r.id as string, r));
+        await db
+          .select()
+          .from(order)
+          .where(
+            inArray(
+              order.inquiryId,
+              db.select({ id: inquiry.id }).from(inquiry).where(eq(inquiry.organizationId, orgId!)),
+            ),
+          )
+      ).forEach((r) => byId.set(r.id, r));
     }
     if (isSeller) {
       (
-        await sql`
-          SELECT * FROM "order"
-          WHERE id IN (
-            SELECT oo.order_id FROM order_offer oo
-            JOIN offer f ON f.id = oo.offer_id
-            WHERE f.organization_id = ${orgId})
-        `
-      ).forEach((r) => byId.set(r.id as string, r));
+        await db
+          .select()
+          .from(order)
+          .where(
+            inArray(
+              order.id,
+              db
+                .select({ id: orderOffer.orderId })
+                .from(orderOffer)
+                .innerJoin(offer, eq(offer.id, orderOffer.offerId))
+                .where(eq(offer.organizationId, orgId!)),
+            ),
+          )
+      ).forEach((r) => byId.set(r.id, r));
     }
     orderRows = [...byId.values()];
   }
 
-  let linkRows: Record<string, unknown>[];
+  let linkRows: (typeof orderOffer.$inferSelect)[];
   if (isOperator) {
-    linkRows = await sql`SELECT * FROM order_offer`;
+    linkRows = await db.select().from(orderOffer);
   } else {
-    const byId = new Map<string, Record<string, unknown>>();
+    const byId = new Map<string, typeof orderOffer.$inferSelect>();
     if (isSeller) {
       (
-        await sql`
-          SELECT * FROM order_offer
-          WHERE offer_id IN (SELECT id FROM offer WHERE organization_id = ${orgId})
-        `
-      ).forEach((r) => byId.set(r.id as string, r));
+        await db
+          .select()
+          .from(orderOffer)
+          .where(
+            inArray(
+              orderOffer.offerId,
+              db.select({ id: offer.id }).from(offer).where(eq(offer.organizationId, orgId!)),
+            ),
+          )
+      ).forEach((r) => byId.set(r.id, r));
     }
     if (isBuyer) {
       (
-        await sql`
-          SELECT * FROM order_offer
-          WHERE order_id IN (
-            SELECT id FROM "order"
-            WHERE inquiry_id IN (SELECT id FROM inquiry WHERE organization_id = ${orgId}))
-        `
-      ).forEach((r) => byId.set(r.id as string, r));
+        await db
+          .select()
+          .from(orderOffer)
+          .where(
+            inArray(
+              orderOffer.orderId,
+              db
+                .select({ id: order.id })
+                .from(order)
+                .where(
+                  inArray(
+                    order.inquiryId,
+                    db.select({ id: inquiry.id }).from(inquiry).where(eq(inquiry.organizationId, orgId!)),
+                  ),
+                ),
+            ),
+          )
+      ).forEach((r) => byId.set(r.id, r));
     }
     linkRows = [...byId.values()];
   }
 
-  const orders = sanitizeOrders(parseRows(orderSchema, orderRows), isOperator);
-
+  const orders = sanitizeOrders(orderRows.map((r) => orderSchema.parse(r)), isOperator);
   return Response.json({
     order: orders,
-    orderOffer: parseRows(orderOfferSchema, linkRows),
+    orderOffer: linkRows.map((r) => orderOfferSchema.parse(r)),
   });
 }
 
@@ -96,38 +122,37 @@ export async function POST(request: Request) {
   }
 
   // the order belongs to the buyer Business it fulfills (its inquiry's org).
-  const inq = await sql`SELECT organization_id FROM inquiry WHERE id = ${fields.inquiryId}`;
-  const organizationId = (inq[0]?.organization_id as string | null) ?? null;
-
-  // operators always own the order; new orders start MATCHED regardless of input.
-  const order: Order = {
-    ...fields,
-    status: "MATCHED",
-    margin: fields.margin ?? 0,
-    userId,
-    organizationId,
-  };
-  const { columns, placeholders, values } = insertClause(order);
+  const inq = await db
+    .select({ organizationId: inquiry.organizationId })
+    .from(inquiry)
+    .where(eq(inquiry.id, fields.inquiryId));
+  const organizationId = inq[0]?.organizationId ?? null;
 
   // one transaction so the order and all its offer links commit atomically.
-  const results = await sql.transaction([
-    sql.query(
-      `INSERT INTO "order" (${columns}) VALUES (${placeholders}) RETURNING *`,
-      values,
-    ),
-    ...offerIds.map((offerId) =>
-      sql.query(
-        `INSERT INTO order_offer (id, order_id, offer_id) VALUES ($1, $2, $3) RETURNING *`,
-        [crypto.randomUUID(), order.id, offerId],
-      ),
-    ),
-  ]);
+  const { created, links } = await txDb.transaction(async (tx) => {
+    const [created] = await tx
+      .insert(order)
+      .values({
+        id: fields.id,
+        status: "MATCHED", // new orders start MATCHED regardless of input.
+        inquiryId: fields.inquiryId,
+        margin: String(fields.margin ?? 0),
+        notes: fields.notes,
+        userId, // operators always own the order.
+        organizationId,
+      })
+      .returning();
+    const links = await tx
+      .insert(orderOffer)
+      .values(offerIds.map((offerId) => ({ orderId: created.id, offerId })))
+      .returning();
+    return { created, links };
+  });
 
-  const [orderRows, ...linkResults] = results;
   return Response.json(
     {
-      order: [parseRow(orderSchema, orderRows[0])],
-      orderOffer: parseRows(orderOfferSchema, linkResults.flat()),
+      order: [orderSchema.parse(created)],
+      orderOffer: links.map((r) => orderOfferSchema.parse(r)),
     },
     { status: 201 },
   );

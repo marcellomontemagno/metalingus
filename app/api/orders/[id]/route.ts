@@ -1,13 +1,12 @@
 import { z, ZodError } from "zod";
-import { sql } from "@/lib/db/db";
+import { and, eq } from "drizzle-orm";
+import { db, txDb } from "@/lib/db/db";
+import { order, orderOffer, inquiry } from "@/lib/db/schema";
 import getAuthContext from "@/lib/auth/getAuthContext";
 import { access } from "@/lib/auth/access";
 import { orderSchema, sanitizeOrder } from "@/lib/model/order/Order";
 import type Order from "@/lib/model/order/Order";
 import { orderOfferSchema } from "@/lib/model/orderOffer/OrderOffer";
-import parseRow from "@/lib/db/parseRow";
-import parseRows from "@/lib/db/parseRows";
-import setClause from "@/lib/db/setClause";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -31,17 +30,16 @@ export async function PATCH(request: Request, { params }: Params) {
     return new Response(message, { status: 400 });
   }
 
-  const currentRows = await sql`SELECT * FROM "order" WHERE id = ${id}`;
+  const currentRows = await db.select().from(order).where(eq(order.id, id));
   if (!currentRows[0]) return new Response("Not found", { status: 404 });
-  const current = parseRow(orderSchema, currentRows[0]);
+  const current = orderSchema.parse(currentRows[0]);
 
   if (isOperator) {
-    const currentLinks = await sql`
-      SELECT offer_id FROM order_offer WHERE order_id = ${id}
-    `;
-    const currentOfferIds = currentLinks
-      .map((r) => r.offer_id as string)
-      .sort();
+    const currentLinks = await db
+      .select({ offerId: orderOffer.offerId })
+      .from(orderOffer)
+      .where(eq(orderOffer.orderId, id));
+    const currentOfferIds = currentLinks.map((r) => r.offerId).sort();
     const wantOfferIds = [...new Set(offerIds)].sort();
 
     const nonStatusChanged =
@@ -58,44 +56,40 @@ export async function PATCH(request: Request, { params }: Params) {
         { status: 403 },
       );
 
-    const { set, where, values } = setClause({
-      fields: {
-        status: fields.status,
-        inquiryId: fields.inquiryId,
-        margin: fields.margin ?? 0,
-        notes: fields.notes,
-      },
-      where: { id },
+    const updated = await txDb.transaction(async (tx) => {
+      const [o] = await tx
+        .update(order)
+        .set({
+          status: fields.status,
+          inquiryId: fields.inquiryId,
+          margin: String(fields.margin ?? 0),
+          notes: fields.notes,
+        })
+        .where(eq(order.id, id))
+        .returning();
+      if (wantOfferIds.join(",") !== currentOfferIds.join(",")) {
+        await tx.delete(orderOffer).where(eq(orderOffer.orderId, id));
+        if (wantOfferIds.length)
+          await tx
+            .insert(orderOffer)
+            .values(wantOfferIds.map((offerId) => ({ orderId: id, offerId })));
+      }
+      return o;
     });
 
-    const queries = [
-      sql.query(`UPDATE "order" SET ${set} WHERE ${where} RETURNING *`, values),
-    ];
-    if (wantOfferIds.join(",") !== currentOfferIds.join(",")) {
-      queries.push(sql.query(`DELETE FROM order_offer WHERE order_id = $1`, [id]));
-      for (const offerId of wantOfferIds)
-        queries.push(
-          sql.query(
-            `INSERT INTO order_offer (id, order_id, offer_id) VALUES ($1, $2, $3)`,
-            [crypto.randomUUID(), id, offerId],
-          ),
-        );
-    }
-    const results = await sql.transaction(queries);
-
-    const links = await sql`SELECT * FROM order_offer WHERE order_id = ${id}`;
+    const links = await db.select().from(orderOffer).where(eq(orderOffer.orderId, id));
     return Response.json({
-      order: [parseRow(orderSchema, results[0][0])],
-      orderOffer: parseRows(orderOfferSchema, links),
+      order: [orderSchema.parse(updated)],
+      orderOffer: links.map((r) => orderOfferSchema.parse(r)),
     });
   }
 
   // buyer path: the buyer org must own the order's inquiry, and may only approve
   // or cancel a still-MATCHED order.
-  const owned = await sql`
-    SELECT 1 FROM inquiry
-    WHERE id = ${current.inquiryId} AND organization_id = ${orgId}
-  `;
+  const owned = await db
+    .select({ id: inquiry.id })
+    .from(inquiry)
+    .where(and(eq(inquiry.id, current.inquiryId), eq(inquiry.organizationId, orgId!)));
   if (!owned[0]) return new Response("Forbidden", { status: 403 });
 
   const allowed =
@@ -106,13 +100,15 @@ export async function PATCH(request: Request, { params }: Params) {
       status: 403,
     });
 
-  const updated = await sql`
-    UPDATE "order" SET status = ${fields.status} WHERE id = ${id} RETURNING *
-  `;
-  const order = sanitizeOrder(parseRow(orderSchema, updated[0]), isOperator);
-  const links = await sql`SELECT * FROM order_offer WHERE order_id = ${id}`;
+  const [updated] = await db
+    .update(order)
+    .set({ status: fields.status })
+    .where(eq(order.id, id))
+    .returning();
+  const sanitized = sanitizeOrder(orderSchema.parse(updated), isOperator);
+  const links = await db.select().from(orderOffer).where(eq(orderOffer.orderId, id));
   return Response.json({
-    order: [order],
-    orderOffer: parseRows(orderOfferSchema, links),
+    order: [sanitized],
+    orderOffer: links.map((r) => orderOfferSchema.parse(r)),
   });
 }
