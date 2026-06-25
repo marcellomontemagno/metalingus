@@ -16,6 +16,22 @@ describe("authentication", () => {
     expect(ctx.platformRole).toBeNull();
   });
 
+  test("an operator resolves with no Business and the operator platform role", async () => {
+    await makeUser("op@t", ["broker"]);
+    asUser("op@t");
+    const ctx = await getAuthContext();
+    expect(ctx.organization).toBeNull();
+    expect(ctx.platformRole).toBe("operator");
+  });
+
+  test("a user with no Business resolves null org and null platform role", async () => {
+    await makeUser("nobody@t", []);
+    asUser("nobody@t");
+    const ctx = await getAuthContext();
+    expect(ctx.organization).toBeNull();
+    expect(ctx.platformRole).toBeNull();
+  });
+
   // Invite-only is now enforced by the Better Auth magicLink `disableSignUp: true`
   // option in lib/auth.ts (no auto-provisioning of unknown emails) rather than a
   // custom adapter that omits createUser.

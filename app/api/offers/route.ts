@@ -18,6 +18,8 @@ export async function GET() {
   if (isOperator) {
     rows = await sql`SELECT * FROM offer`;
   } else if (isSeller && orgId) {
+    // Sell-first: a `both`-type org matches here and sees its own offers; it does
+    // not fall through to the buyer branch below (its orders' marked-up offers).
     rows = await sql`SELECT * FROM offer WHERE organization_id = ${orgId}`;
   } else if (isBuyer && orgId) {
     // buyers only see offers linked to their own org's orders, and only at the

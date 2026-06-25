@@ -37,5 +37,5 @@
 
 ## 5. Verification
 
-- [ ] 5.1 Tests cover invite→accept onboarding, org-scoped visibility, business-type gating, member-role gating, broker platform actions, and preserved margin privacy / order immutability
+- [x] 5.1 Tests (36) cover org-scoped visibility + isolation + `organization_id` stamping + cross-org rejection, business-type gating, operator platform actions, margin privacy, order immutability, `getAuthContext` shape (org / operator / none), provisioning (`kind` + `platformRole`, idempotent), and the both-org sell-first rule. Invite→accept onboarding + member-role gating live on `members-management`
 - [ ] 5.2 Validate the data migration and the session cutover on a staging copy before production
