@@ -9,7 +9,9 @@ import {
   provisionOperator,
   type BusinessType,
 } from "@/lib/provisioning";
-import { sql } from "@/lib/db/db";
+import { eq } from "drizzle-orm";
+import { db } from "@/lib/db/db";
+import { organization, member, user } from "@/lib/db/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -48,16 +50,28 @@ export default async function OperatorPage({
 }) {
   const sp = await searchParams;
 
-  const businesses = await sql`
-    SELECT o.name, o.slug,
-      (SELECT u.email FROM member m JOIN "user" u ON u.id = m."userId"
-       WHERE m."organizationId" = o.id AND m.role = 'owner' LIMIT 1) AS owner,
-      (SELECT count(*)::int FROM member m WHERE m."organizationId" = o.id) AS members
-    FROM organization o ORDER BY o.name`;
+  const [orgs, memberRows] = await Promise.all([
+    db
+      .select({ id: organization.id, name: organization.name, slug: organization.slug })
+      .from(organization)
+      .orderBy(organization.name),
+    db
+      .select({ orgId: member.organizationId, role: member.role, email: user.email })
+      .from(member)
+      .innerJoin(user, eq(user.id, member.userId)),
+  ]);
+  const businesses = orgs.map((o) => ({
+    name: o.name,
+    slug: o.slug,
+    owner: memberRows.find((m) => m.orgId === o.id && m.role === "owner")?.email ?? null,
+    members: memberRows.filter((m) => m.orgId === o.id).length,
+  }));
 
-  const operators = await sql`
-    SELECT u.email, u.name FROM "user" u
-    WHERE u."platformRole" = 'operator' ORDER BY u.email`;
+  const operators = await db
+    .select({ email: user.email, name: user.name })
+    .from(user)
+    .where(eq(user.platformRole, "operator"))
+    .orderBy(user.email);
 
   async function provisionBiz(formData: FormData) {
     "use server";

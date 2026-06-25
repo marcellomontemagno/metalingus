@@ -3,7 +3,9 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import getAuthContext from "@/lib/auth/getAuthContext";
 import { access } from "@/lib/auth/access";
-import { sql } from "@/lib/db/db";
+import { eq } from "drizzle-orm";
+import { db } from "@/lib/db/db";
+import { member, organization } from "@/lib/db/schema";
 import AppSidebar from "@/components/AppSidebar";
 import SetAuthContext from "@/components/SetAuthContext";
 import {
@@ -23,11 +25,15 @@ export default async function AppShell({
 
   // Current Business to surface in the sidebar (first membership for now; the
   // deferred switcher will let multi-org users choose the active one).
-  const orgRows = await sql`
-    SELECT o.name, o.slug FROM member m JOIN organization o ON o.id = m."organizationId"
-    WHERE m."userId" = ${user.id} ORDER BY o.name LIMIT 1`;
+  const orgRows = await db
+    .select({ name: organization.name, slug: organization.slug })
+    .from(member)
+    .innerJoin(organization, eq(organization.id, member.organizationId))
+    .where(eq(member.userId, user.id))
+    .orderBy(organization.name)
+    .limit(1);
   const currentOrg = orgRows[0]
-    ? { name: orgRows[0].name as string, slug: orgRows[0].slug as string }
+    ? { name: orgRows[0].name, slug: orgRows[0].slug }
     : null;
 
   const items = [

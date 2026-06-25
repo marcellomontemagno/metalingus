@@ -1,40 +1,40 @@
 import { ZodError } from "zod";
-import { sql } from "@/lib/db/db";
+import { eq, inArray } from "drizzle-orm";
+import { db } from "@/lib/db/db";
+import { inquiry, order, user } from "@/lib/db/schema";
 import getAuthContext from "@/lib/auth/getAuthContext";
 import { access } from "@/lib/auth/access";
 import { inquirySchema } from "@/lib/model/inquiry/Inquiry";
 import type Inquiry from "@/lib/model/inquiry/Inquiry";
 import { userSchema } from "@/lib/model/user/User";
 import { orderSchema, sanitizeOrders } from "@/lib/model/order/Order";
-import parseRow from "@/lib/db/parseRow";
-import parseRows from "@/lib/db/parseRows";
-import insertClause from "@/lib/db/insertClause";
 
 export async function GET() {
   const ctx = await getAuthContext();
   const { isOperator, orgId, isBuyer } = access(ctx);
-  let rows: Record<string, unknown>[] = [];
+  let inquiries: Inquiry[] = [];
   if (isOperator) {
-    rows = await sql`SELECT * FROM inquiry`;
+    inquiries = (await db.select().from(inquiry)).map((r) => inquirySchema.parse(r));
   } else if (isBuyer && orgId) {
-    rows = await sql`SELECT * FROM inquiry WHERE organization_id = ${orgId}`;
+    inquiries = (
+      await db.select().from(inquiry).where(eq(inquiry.organizationId, orgId))
+    ).map((r) => inquirySchema.parse(r));
   }
-  const inquiries = parseRows(inquirySchema, rows);
   const inquiryIds = inquiries.map((i) => i.id);
 
-  let orderRows: Record<string, unknown>[] = [];
-  if (inquiryIds.length > 0 && (isOperator || (isBuyer && orgId))) {
-    orderRows = await sql`SELECT * FROM "order" WHERE inquiry_id = ANY(${inquiryIds})`;
-  }
-  const orders = sanitizeOrders(parseRows(orderSchema, orderRows), isOperator);
+  const orderRows =
+    inquiryIds.length > 0 && (isOperator || (isBuyer && orgId))
+      ? await db.select().from(order).where(inArray(order.inquiryId, inquiryIds))
+      : [];
+  const orders = sanitizeOrders(orderRows.map((r) => orderSchema.parse(r)), isOperator);
 
   const userIds = [...new Set(inquiries.map((i) => i.userId))];
   const userRows = userIds.length
-    ? await sql`SELECT * FROM "user" WHERE id = ANY(${userIds})`
+    ? await db.select().from(user).where(inArray(user.id, userIds))
     : [];
   return Response.json({
     inquiry: inquiries,
-    user: parseRows(userSchema, userRows),
+    user: userRows.map((r) => userSchema.parse(r)),
     order: orders,
   });
 }
@@ -43,8 +43,7 @@ export async function POST(request: Request) {
   const ctx = await getAuthContext();
   const { orgId, isBuyer } = access(ctx);
   // Any member of a buyer Business can open inquiries.
-  if (!orgId || !isBuyer)
-    return new Response("Forbidden", { status: 403 });
+  if (!orgId || !isBuyer) return new Response("Forbidden", { status: 403 });
   const userId = ctx.user.id;
   let fields: Inquiry;
   try {
@@ -54,17 +53,16 @@ export async function POST(request: Request) {
       err instanceof ZodError ? err.issues[0].message : "Invalid request body";
     return new Response(message, { status: 400 });
   }
-  const { columns, placeholders, values } = insertClause({
-    ...fields,
-    userId,
-    organizationId: orgId,
-  });
-  const rows = await sql.query(
-    `INSERT INTO inquiry (${columns}) VALUES (${placeholders}) RETURNING *`,
-    values,
-  );
-  return Response.json(
-    { inquiry: [parseRow(inquirySchema, rows[0])] },
-    { status: 201 },
-  );
+  const [created] = await db
+    .insert(inquiry)
+    .values({
+      ...fields,
+      width: String(fields.width),
+      height: String(fields.height),
+      thickness: String(fields.thickness),
+      userId,
+      organizationId: orgId,
+    })
+    .returning();
+  return Response.json({ inquiry: [inquirySchema.parse(created)] }, { status: 201 });
 }

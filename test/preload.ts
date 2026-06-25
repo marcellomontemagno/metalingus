@@ -2,13 +2,13 @@
 // for the test-controlled one, before any route handler is imported. The real
 // getAuthContext runs against pglite, so role resolution is exercised too.
 import { mock } from "bun:test";
-import { sql } from "./helpers/db";
+import { sql, db } from "./helpers/db";
 import { getSession } from "./helpers/ctx";
 
 // lib/auth constructs neon() at import; never loaded here, but keep env sane.
 process.env.POSTGRES_URL ||= "postgresql://test:test@localhost:5432/test";
 
-mock.module("@/lib/db/db", () => ({ sql }));
+mock.module("@/lib/db/db", () => ({ db, txDb: db }));
 // getAuthContext resolves identity via @/lib/auth's getSession + next/headers.
 // createOrganization is a minimal stand-in for Better Auth's: it writes the org +
 // owner membership to pglite so provisionBusiness is exercisable in-harness.
@@ -22,9 +22,9 @@ mock.module("@/lib/auth", () => ({
         body: { name: string; slug: string; userId: string };
       }) => {
         const id = crypto.randomUUID();
-        await sql`INSERT INTO organization (id, name, slug) VALUES (${id}, ${body.name}, ${body.slug})`;
-        await sql`INSERT INTO member (id, "organizationId", "userId", role)
-          VALUES (${crypto.randomUUID()}, ${id}, ${body.userId}, 'owner')`;
+        await sql`INSERT INTO organization (id, name, slug, "createdAt") VALUES (${id}, ${body.name}, ${body.slug}, now())`;
+        await sql`INSERT INTO member (id, "organizationId", "userId", role, "createdAt")
+          VALUES (${crypto.randomUUID()}, ${id}, ${body.userId}, 'owner', now())`;
         return { id, name: body.name, slug: body.slug };
       },
     },

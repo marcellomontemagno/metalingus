@@ -1,41 +1,20 @@
 // In-process Postgres (pglite) wearing the @neondatabase/serverless interface, so
 // the real route handlers run unmodified against it. Better Auth owns the `user`
 // table in production; the harness creates a compatible one before the app schema.
-import { readFileSync } from "node:fs";
 import { PGlite } from "@electric-sql/pglite";
+import { drizzle } from "drizzle-orm/pglite";
+import { migrate } from "drizzle-orm/pglite/migrator";
+import * as schema from "@/lib/db/schema";
 import { asUser } from "./ctx";
 
 const pg = new PGlite(); // in-memory; one per test process
 
-// Better Auth's user table (the columns the app FKs to / queries).
-await pg.exec(`CREATE TABLE "user" (
-  id TEXT PRIMARY KEY,
-  name TEXT,
-  email TEXT UNIQUE,
-  "emailVerified" BOOLEAN NOT NULL DEFAULT false,
-  image TEXT,
-  "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
-  "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
-  "platformRole" TEXT
-);`);
-// Better Auth's organization table (the app FKs `organization_id` to it).
-await pg.exec(`CREATE TABLE organization (
-  id TEXT PRIMARY KEY,
-  name TEXT NOT NULL,
-  slug TEXT,
-  logo TEXT,
-  "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
-  metadata TEXT,
-  kind TEXT
-);`);
-await pg.exec(`CREATE TABLE member (
-  id TEXT PRIMARY KEY,
-  "organizationId" TEXT NOT NULL,
-  "userId" TEXT NOT NULL,
-  role TEXT NOT NULL,
-  "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now()
-);`);
-await pg.exec(readFileSync("scripts/db/schema.sql", "utf8")); // app tables (FK to user/org)
+// Drizzle over the same pglite — what the handlers' `db`/`txDb` resolve to in tests.
+export const db = drizzle(pg, { schema });
+
+// Build the schema by applying the Drizzle migrations (the single schema source) —
+// drizzle's own migrator handles statement-breakpoints, ordering, and tracking.
+await migrate(db, { migrationsFolder: "drizzle" });
 
 function makeQuery(text: string, params: unknown[]) {
   const run = () => pg.query(text, params).then((r) => r.rows);
@@ -85,8 +64,8 @@ export async function makeUser(email: string, roles: string[] = []): Promise<str
   if (isBuyer || isSeller) {
     const kind = isBuyer && isSeller ? "both" : isBuyer ? "buyer" : "seller";
     const orgId = crypto.randomUUID();
-    await sql`INSERT INTO organization (id, name, slug, kind) VALUES (${orgId}, ${email}, ${email}, ${kind})`;
-    await sql`INSERT INTO member (id, "organizationId", "userId", role) VALUES (${crypto.randomUUID()}, ${orgId}, ${id}, 'owner')`;
+    await sql`INSERT INTO organization (id, name, slug, kind, "createdAt") VALUES (${orgId}, ${email}, ${email}, ${kind}, now())`;
+    await sql`INSERT INTO member (id, "organizationId", "userId", role, "createdAt") VALUES (${crypto.randomUUID()}, ${orgId}, ${id}, 'owner', now())`;
   }
   return id;
 }

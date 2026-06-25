@@ -1,19 +1,17 @@
 import { betterAuth } from "better-auth";
 import { magicLink, organization } from "better-auth/plugins";
-import { Pool, neonConfig } from "@neondatabase/serverless";
-import ws from "ws";
+import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { Resend } from "resend";
-
-// Neon's Pool speaks WebSocket; give it a constructor in Node (local + Vercel).
-neonConfig.webSocketConstructor = ws;
+import { txDb } from "@/lib/db/db";
+import * as dbSchema from "@/lib/db/schema";
 
 const resend = new Resend(process.env.AUTH_RESEND_KEY);
 const from = process.env.AUTH_EMAIL_FROM ?? "auth@keepalink.com";
 
 export const auth = betterAuth({
-  // Same Neon database the app already uses — via the WebSocket Pool, not the
-  // HTTP neon() client, because Better Auth needs sessions/transactions.
-  database: new Pool({ connectionString: process.env.POSTGRES_URL }),
+  // Drizzle over the same Neon DB — the WebSocket Pool (txDb) gives Better Auth its
+  // sessions/transactions; the introspected schema is the single source of truth.
+  database: drizzleAdapter(txDb, { provider: "pg", schema: dbSchema }),
   // Reuse the existing secret in dev; set BETTER_AUTH_SECRET/URL in production.
   secret: process.env.BETTER_AUTH_SECRET ?? process.env.AUTH_SECRET,
   baseURL: process.env.BETTER_AUTH_URL ?? "http://localhost:3000",

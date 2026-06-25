@@ -1,27 +1,27 @@
 import { headers } from "next/headers";
+import { eq } from "drizzle-orm";
 import { auth } from "@/lib/auth";
-import { sql } from "@/lib/db/db";
-import parseRow from "@/lib/db/parseRow";
+import { db } from "@/lib/db/db";
+import { user as userTable, member, organization } from "@/lib/db/schema";
 import { userSchema } from "@/lib/model/user/User";
 import type AuthContext from "./AuthContext";
 
 export default async function getAuthContext(): Promise<AuthContext> {
   const session = await auth.api.getSession({ headers: await headers() });
-  const email = session?.user?.email;
-  const userRows = await sql`SELECT * FROM "user" WHERE email = ${email}`;
-  const user = parseRow(userSchema, userRows[0]);
+  const email = session?.user?.email ?? "";
+  const userRows = await db.select().from(userTable).where(eq(userTable.email, email));
+  const user = userSchema.parse(userRows[0]);
   // The user's current Business (first membership) + the platform role.
-  const orgRows = await sql`
-    SELECT o.id, o.name, o.kind
-    FROM member m JOIN organization o ON o.id = m."organizationId"
-    WHERE m."userId" = ${user.id} ORDER BY o.name LIMIT 1`;
-  const organization = orgRows[0]
-    ? {
-        id: orgRows[0].id as string,
-        name: orgRows[0].name as string,
-        kind: (orgRows[0].kind as string | null) ?? null,
-      }
+  const orgRows = await db
+    .select({ id: organization.id, name: organization.name, kind: organization.kind })
+    .from(member)
+    .innerJoin(organization, eq(organization.id, member.organizationId))
+    .where(eq(member.userId, user.id))
+    .orderBy(organization.name)
+    .limit(1);
+  const org = orgRows[0]
+    ? { id: orgRows[0].id, name: orgRows[0].name, kind: orgRows[0].kind ?? null }
     : null;
   const platformRole = user.platformRole ?? null;
-  return { user, organization, platformRole };
+  return { user, organization: org, platformRole };
 }
