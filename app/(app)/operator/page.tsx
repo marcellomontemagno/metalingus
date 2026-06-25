@@ -8,7 +8,7 @@ import {
   provisionBusiness,
   provisionOperator,
   type BusinessType,
-} from "@/lib/provisionBusiness";
+} from "@/lib/provisioning";
 import { sql } from "@/lib/db/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";

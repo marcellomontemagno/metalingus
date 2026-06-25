@@ -1,6 +1,6 @@
 import { test, expect, describe, beforeEach } from "bun:test";
 import { reset, sql } from "./helpers/db";
-import { provisionBusiness, provisionOperator } from "@/lib/provisionBusiness";
+import { provisionBusiness, provisionOperator } from "@/lib/provisioning";
 
 beforeEach(reset);
 
