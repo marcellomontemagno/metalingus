@@ -21,10 +21,10 @@
 
 ## 4. Phase 4 — Handlers onto the query builder
 
-- [ ] 4.1 inquiries (`route.ts` + `[id]/route.ts`): SELECT / INSERT…RETURNING / UPDATE / DELETE via `db`, org-scoped `where`, operator-sees-all; drop this resource's `parseRow`/`insertClause`/`setClause` use
-- [ ] 4.2 offers (`route.ts` + `[id]/route.ts`): same, including the buyer marked-up-price join (`price_per_meter * (1 + margin)`) and the both-org sell-first branch
-- [ ] 4.3 orders (`route.ts` + `[id]/route.ts`): create transaction on `txDb` (`txDb.transaction`: insert order + order_offers); `sanitizeOrder` margin privacy preserved
-- [ ] 4.4 Delete `lib/db/parseRow`/`parseRows`/`insertClause`/`setClause` once no handler imports them; `tsc` 0, tests green
+- [x] 4.1 inquiries (`route.ts` + `[id]/route.ts`) on the query builder; reads coerce via the model schema, inserts stringify numerics (`numeric` stays string per Decision 6); org-scoped `where` + operator-sees-all preserved
+- [x] 4.2 offers (`route.ts` + `[id]/route.ts`): the buyer marked-up-price join via `selectDistinct` + a raw `sql` price expression; the both-org sell-first branch preserved
+- [x] 4.3 orders (`route.ts` + `[id]/route.ts`): create transaction on `txDb.transaction`; Map-union GET; the MATCHED-lock PATCH; `sanitizeOrder`/`sanitizeOrders` margin privacy preserved
+- [x] 4.4 Also ported `getAuthContext` off `sql`+`parseRow`; deleted `parseRow`/`parseRows`/`insertClause`/`setClause`; `lib/db` is now just `db`/`schema`/`relations`; tsc 0, 37 tests green. (Harness gained a `drizzle-orm/pglite` `db` — task 6.3 partially pulled forward; `sql` stays for provisioning + scripts until Phase 6.1)
 
 ## 5. Phase 5 — Types via drizzle-zod
 
