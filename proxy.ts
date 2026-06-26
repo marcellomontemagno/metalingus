@@ -14,7 +14,9 @@ function isPublic(pathname: string) {
 
 // Optimistic check: presence of the Better Auth session cookie. Full validation
 // happens server-side in getAuthContext(); this only gates routing.
-export default function middleware(req: NextRequest) {
+// Next.js 16: renamed from `middleware` to `proxy` — runs on the `nodejs` runtime
+// (proxy has no edge runtime).
+export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const isLoggedIn = !!getSessionCookie(req);
 
