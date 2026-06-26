@@ -3,12 +3,13 @@ import { magicLink, organization } from "better-auth/plugins";
 import { Pool, neonConfig } from "@neondatabase/serverless";
 import ws from "ws";
 import { Resend } from "resend";
+import { brand } from "@/lib/brand";
 
 // Neon's Pool speaks WebSocket; give it a constructor in Node (local + Vercel).
 neonConfig.webSocketConstructor = ws;
 
 const resend = new Resend(process.env.AUTH_RESEND_KEY);
-const from = process.env.AUTH_EMAIL_FROM ?? "auth@keepalink.com";
+const from = process.env.AUTH_EMAIL_FROM ?? brand.emailFrom;
 
 export const auth = betterAuth({
   // Same Neon database the app already uses — via the WebSocket Pool, not the
@@ -38,12 +39,12 @@ export const auth = betterAuth({
       // One sender for every magic link, framed by the callbackURL. Operator/
       // business provisioning sends a one-click welcome (callbackURL `/?welcome`).
       sendMagicLink: async ({ email, url }) => {
-        let subject = "Your metalingus sign-in link";
-        let intro = "Sign in to metalingus:";
+        let subject = `Your ${brand.name} sign-in link`;
+        let intro = `Sign in to ${brand.name}:`;
         try {
           if ((new URL(url).searchParams.get("callbackURL") ?? "").includes("welcome")) {
-            subject = "You've been added to metalingus";
-            intro = "An account was created for you on metalingus. Click to sign in:";
+            subject = `You've been added to ${brand.name}`;
+            intro = `An account was created for you on ${brand.name}. Click to sign in:`;
           }
         } catch {}
         await resend.emails.send({

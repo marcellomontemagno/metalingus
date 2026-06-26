@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { brand } from "@/lib/brand";
 import { Inbox, Package, Shield, Tag, type LucideIcon } from "lucide-react";
 import {
   Sidebar,
@@ -50,7 +51,7 @@ export default function AppSidebar({
       <SidebarHeader>
         <Link href="/" className="flex items-center gap-2 px-2 py-1">
           <span className="font-heading text-base font-semibold tracking-tight">
-            Metalingus
+            {brand.name}
           </span>
         </Link>
         {currentOrg && (

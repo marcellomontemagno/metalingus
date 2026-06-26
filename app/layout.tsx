@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist_Mono, Nunito_Sans, Bricolage_Grotesque } from "next/font/google";
 import "./globals.css";
 import cn from "@/lib/utils/cn";
+import { brand } from "@/lib/brand";
 
 const nunitoSans = Nunito_Sans({subsets:['latin'],variable:'--font-nunito-sans'});
 
@@ -13,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "metalingus",
-  description: "A broker-mediated marketplace for steel bar.",
+  title: brand.name,
+  description: brand.tagline,
 };
 
 export default function RootLayout({

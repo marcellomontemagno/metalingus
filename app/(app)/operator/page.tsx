@@ -10,6 +10,7 @@ import {
   type BusinessType,
 } from "@/lib/provisioning";
 import { sql } from "@/lib/db/db";
+import { brand } from "@/lib/brand";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -166,7 +167,7 @@ export default async function OperatorPage({
               <FieldGroup>
                 <Field>
                   <FieldLabel htmlFor="op-email">Operator email</FieldLabel>
-                  <Input id="op-email" name="email" type="email" placeholder="ops@metalingus.com" required />
+                  <Input id="op-email" name="email" type="email" placeholder={`ops@${brand.domain}`} required />
                 </Field>
                 <label className="flex items-center gap-2 text-sm">
                   <input type="checkbox" name="sendEmail" className="size-4" />

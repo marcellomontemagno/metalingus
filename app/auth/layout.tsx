@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { brand } from "@/lib/brand";
 
 // Shared shell for the auth flow (signin / verify / error): centered, branded,
 // max-w-sm. Each page renders its own Card inside.
@@ -13,7 +14,7 @@ export default function AuthLayout({
         href="/"
         className="font-heading text-2xl font-semibold tracking-tight"
       >
-        metalingus
+        {brand.name}
       </Link>
       <div className="w-full max-w-sm">{children}</div>
     </main>
