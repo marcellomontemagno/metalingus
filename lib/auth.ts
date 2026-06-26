@@ -16,7 +16,15 @@ export const auth = betterAuth({
   database: new Pool({ connectionString: process.env.POSTGRES_URL }),
   // Reuse the existing secret in dev; set BETTER_AUTH_SECRET/URL in production.
   secret: process.env.BETTER_AUTH_SECRET ?? process.env.AUTH_SECRET,
-  baseURL: process.env.BETTER_AUTH_URL ?? "http://localhost:3000",
+  // Resolve the base URL from the incoming request (the real host:port), so dev on
+  // any port, Vercel previews, and prod all build correct magic-link/callback URLs.
+  // Matched hosts auto-join trustedOrigins; `fallback` covers no-request contexts
+  // (CLI scripts) and non-matching hosts — set BETTER_AUTH_URL to your prod domain.
+  baseURL: {
+    allowedHosts: ["localhost:*", "*.vercel.app"],
+    fallback: process.env.BETTER_AUTH_URL ?? "http://localhost:3000",
+    protocol: "auto",
+  },
   // UUID ids keep the app's z.uuid() validations and the text user_id FKs aligned.
   advanced: { database: { generateId: () => crypto.randomUUID() } },
   // Platform role lives on the user: `operator` = broker/platform (sees-all),
